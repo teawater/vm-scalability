@@ -40,7 +40,7 @@ create_sparse_file () {
 pagesize=$(getconf PAGESIZE)
 
 nr_cpu=$(grep -c processor /proc/cpuinfo)
-nr_node=$(echo /sys/devices/system/node/node* | wc -l)
+nr_node=$(echo /sys/devices/system/node/node* | wc -w)
 
 while read key val; do
 	eval $key=$val
