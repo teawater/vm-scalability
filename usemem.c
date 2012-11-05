@@ -166,14 +166,14 @@ unsigned long long memparse(const char *ptr, char **retptr)
 
 static inline void os_random_seed(unsigned long seed, struct drand48_data *rs)
 {
-        srand48_r(seed, rs);
+	srand48_r(seed, rs);
 }
 
 static inline long os_random_long(unsigned long max, struct drand48_data *rs)
 {
-        long val;
+	long val;
 
-        lrand48_r(rs, &val);
+	lrand48_r(rs, &val);
 	return (unsigned long)((double)max * val / (RAND_MAX + 1.0));
 }
 
@@ -187,7 +187,7 @@ int down(int sem_id)
 		.sem_op  = -1,
 		.sem_flg = SEM_UNDO,
 	};
-        return semop(sem_id, &buf, 1);
+	return semop(sem_id, &buf, 1);
 }
 
 int up(int sem_id)
@@ -197,7 +197,7 @@ int up(int sem_id)
 		.sem_op  = 1,
 		.sem_flg = SEM_UNDO,
 	};
-        return semop(sem_id, &buf, 1);
+	return semop(sem_id, &buf, 1);
 }
 
 void delete_pid_file(void)
