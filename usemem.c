@@ -5,6 +5,7 @@
  *
  * gcc -lpthread -O -g -Wall  usemem.c -o usemem
  */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,8 +20,14 @@
 #include <semaphore.h>
 #include <sys/sem.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/shm.h>
+#include "usemem_mincore.h"
+#include "usemem_hugepages.h"
 
 #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
+
+#define HUGE_PAGE_SIZE (2UL * 1024 * 1024)
 
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\
@@ -34,6 +41,8 @@
 	(void) (&_max1 == &_max2);		\
 	_max1 > _max2 ? _max1 : _max2; })
 
+/* used for remapping the allocated size in remap() */
+#define SCALE_FACTOR 10
 
 char *ourname;
 int pagesize;
@@ -52,6 +61,11 @@ int opt_readonly;
 int opt_openrw;
 int opt_malloc;
 int opt_detach;
+int opt_advise = 0;
+int opt_shm = 0;
+int opt_remap = 0;
+int opt_mincore = 0;
+int opt_mincore_hugepages = 0;
 int sem_id = -1;
 int nr_task;
 int nr_thread;
@@ -89,6 +103,11 @@ void usage(int ok)
 	"    -p|--pid-file FILE  store detached pid to FILE\n"
 	"    -g|--getchar        wait for <enter> before quitting\n"
 	"    -q|--quiet          operate quietly\n"
+	"    -L|--lock           Lock a shared memory using sys V IPC\n"
+	"    -D|--advise         advise file access pattern to kernel\n"
+	"    -E|--remap          remap file virtual memory\n"
+	"    -N|--mincore        get information about pages in memory\n"
+	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -117,9 +136,31 @@ static const struct option opts[] = {
 	{ "sleep"	, 1, NULL, 's' },
 	{ "runtime"	, 1, NULL, 'T' },
 	{ "getchar"	, 0, NULL, 'g' },
+	{ "Lock"	, 0, NULL, 'L' },
+	{ "advice"	, 0, NULL, 'D' },
+	{ "remap"	, 0, NULL, 'E' },
+	{ "mncr_hgpgs"	, 0, NULL, 'H' },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
+
+/* print memory lock/unlock menu */
+void print_menu() {
+	printf("**********************************************************\n");
+	printf("*							 *\n");
+	printf("*		    Enter an option			 *\n");
+	printf("**********************************************************\n");
+	printf("*							 *\n");
+	printf("*		    a ----> automate			 *\n");
+	printf("*		    l ----> locking			 *\n");
+	printf("*		    r ----> remapping			 *\n");
+	printf("*		    u ----> unlocking			 *\n");
+	printf("*		    q ----> quit			 *\n");
+	printf("*							 *\n");
+	printf("*							 *\n");
+	printf("**********************************************************\n\n\n");
+	printf("your option: ");
+}
 
 /**
  *	memparse - parse a string with mem suffixes into a number
@@ -307,7 +348,7 @@ unsigned long * allocate(unsigned long bytes)
 				ourname, strerror(errno));
 			exit(1);
 		}
-		p = (unsigned long *)ALIGN((unsigned long )p, pagesize - 1);
+		p = (unsigned long *)ALIGN((unsigned long)p, pagesize - 1);
 	}
 
 	if (do_mlock && mlock(p, bytes) < 0) {
@@ -329,11 +370,66 @@ int runtime_exceeded(void)
 	return (now.tv_sec - start_time.tv_sec > runtime_secs);
 }
 
+/* Function to allocate sys V IPC shared object of size "bytes" */
+
+void shm_allocate_and_lock(unsigned long bytes)
+{
+	unsigned long *p = NULL;	    /* initialize to NULL */
+	unsigned long itr;
+	int page_size;
+
+	if (!bytes) {
+		perror("invalid size\n");
+		exit(1);
+	}
+
+	/* create a shared sys V IPC shared object of size "bytes"*/
+
+	/* Check if the shmget call was successful */
+	if ((seg_id = shmget(IPC_PRIVATE, bytes, IPC_CREAT|IPC_EXCL)) == EINVAL) {
+		fprintf(stderr, "SHM creation failed with error :%s\n", strerror(errno));
+		exit(1);
+	}
+
+	/* Attach the shared memory to callers virtual address space */
+	/* Check if the attachment was successful */
+	if ((p = shmat(seg_id, NULL, SHM_RND)) == (void *) -1) {
+		fprintf(stderr, "SHM attachment failed with error :%s\n", strerror(errno));
+		shm_free(seg_id);
+		exit(1);
+	} else {
+		/* Attach the shared segment to virtual space of process at p */
+		page_size = getpagesize();
+
+		/* Touch each page atleast once */
+		for (itr = 0; itr < bytes; itr += page_size)
+			*((char *)p + itr + 1) = 1;
+	}
+
+	if (shmctl(seg_id, SHM_LOCK, NULL) < 0) {
+		perror("Error in SYS V SHM locking\n");
+		exit(1);
+	}
+}
+
+/* Unlock a locked SYS V IPC shared memory */
+void shm_unlock(int seg_id)
+{
+	if (seg_id < 0) {
+		perror("Invalid seg_id\n");
+		exit(1);
+	}
+
+	/* Unlock shared memory segment */
+	shmctl(seg_id, SHM_UNLOCK, NULL);
+}
+
 int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 {
 	unsigned long i;
 	unsigned long *p;
 	int rep;
+	int c;
 
 	p = prealloc ? : allocate(bytes);
 
@@ -363,29 +459,69 @@ int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 
 			/* read / write */
 			if (opt_readonly)
-				d = p[idx];
+				d = p[idx];	/* read data into d */
 			else
-				p[idx] = idx;
+				p[idx] = idx;	/* write data into p[idx] */
 			if (!(i & 0xffff) && runtime_exceeded()) {
 				rep = reps;
 				break;
 			}
 		}
-		if (msync_mode)
-			msync(p, bytes, msync_mode);
+
+		if (msync_mode) {
+			if ((msync(p, bytes, msync_mode)) == -1) {
+				fprintf(stderr, "msync failed with error %s \n", strerror(errno));
+				exit(1);
+			}
+		}
 	}
 
 	if (do_getchar) {
-		for ( ; ; ) {
-			switch (getchar()) {
-			case 'u':
-				printf("munlocking\n");
+
+		print_menu();
+
+		while (1) {
+
+			if ((c = getchar()) == '\n') continue;
+
+			switch (c) {
+			case 'a':
+				/*  select this case for an automatic lock, remap and unlock */
+				mlock(p, bytes);
+				printf("locking memory ..... done!\n\n");
+				if ((p = mremap(p, bytes, SCALE_FACTOR * bytes, MREMAP_MAYMOVE)) == MAP_FAILED) {
+					fprintf(stderr, "remap failed: %s\n\n", strerror(errno));
+					exit(1);
+				}
+
+				bytes = SCALE_FACTOR * bytes;
+				printf("remapping locked memory.....done!\n\n");
 				munlock(p, bytes);
+				printf("unlocking memory ..... done!\n\n");
+				return 0;
+			case 'u':
+				munlock(p, bytes);
+				printf("unlocking memory ..... done!\n");
+				print_menu();
 				break;
 			case 'l':
-				printf("munlocking\n");
 				mlock(p, bytes);
+				printf("locking memory ..... done!\n");
+				print_menu();
 				break;
+			case 'r':
+				if ((p = mremap(p, bytes, SCALE_FACTOR * bytes, MREMAP_MAYMOVE)) == MAP_FAILED) {
+					fprintf(stderr, "remap failed: %s\n", strerror(errno));
+					exit(1);
+				}
+
+				bytes = SCALE_FACTOR * bytes;
+				printf("remapping locked memory.....done!\n");
+				print_menu();
+				break;
+			case 'q':
+				printf("Quitting now\n");
+				return 0;
 			}
 		}
 	}
@@ -439,14 +575,14 @@ int do_task(void)
 	if (!nr_thread)
 		return do_units(bytes);
 
-	for(i = 0; i < nr_thread; i++) {
+	for (i = 0; i < nr_thread; i++) {
 		ret = pthread_create(&threads[i], NULL, (start_routine)do_units, (void *)bytes);
 		if (ret) {
 			perror("pthread_create");
 			exit(1);
 		}
 	}
-	for(i = 0; i < nr_thread; i++) {
+	for (i = 0; i < nr_thread; i++) {
 		ret = pthread_join(threads[i], (void *)&thread_ret);
 		if (ret) {
 			perror("pthread_join");
@@ -461,9 +597,10 @@ int do_tasks(void)
 {
 	int i;
 	int status;
+	int child_pid;
 
 	for (i = 0; i < nr_task; i++) {
-		if (fork() == 0) {
+		if ((child_pid = fork()) == 0) {
 			return do_task();
 		}
 	}
@@ -485,11 +622,21 @@ int main(int argc, char *argv[])
 {
 	int c;
 
+#ifdef DBG
+	/* print the command line parameters passed on to main */
+	int itr = 0;
+	printf("main() invoked with %d arguments and they are as follows \n", argc);
+	for (itr = 0; itr < argc; itr++) {
+		printf("arg[%d] is	----->	%s\n", itr, argv[itr]);
+	}
+#endif
+
 	ourname = argv[0];
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:h", opts, NULL)) != -1) {
+				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:EHDNLh", opts, NULL)) != -1)
+		{
 		switch (c) {
 		case 'a':
 			opt_malloc++;
@@ -562,6 +709,26 @@ int main(int argc, char *argv[])
 		case 'h':
 			usage(0);
 			break;
+		case 'L':
+			opt_shm = 1;
+			break;
+		case 'D':
+			filename = argv[optind];
+			opt_advise = 1;
+			break;
+
+		case 'E':
+			opt_remap = 1;
+			break;
+
+		case 'N':
+			opt_mincore = 1;
+			break;
+
+		case 'H':
+			opt_mincore_hugepages = 1;
+			break;
+
 		default:
 			usage(1);
 		}
@@ -595,6 +762,105 @@ int main(int argc, char *argv[])
 
 	if (prealloc)
 		prealloc = allocate(bytes);
+
+	if (opt_remap)
+		prealloc = mremap(prealloc, bytes, SCALE_FACTOR * bytes, MREMAP_MAYMOVE);
+
+	/* Allocate a shared sysV IPC shared object of size "bytes" */
+	if (opt_shm) {
+		shm_allocate_and_lock(bytes);
+
+		/* Unlocking memory now */
+		shm_unlock(seg_id);
+
+		/* mark for destruction */
+		shm_free(seg_id);
+	}
+
+	/* Advise file access pattern */
+	if (opt_advise) {
+		/* advice : WILLNEED */
+		if ((posix_fadvise(fd, 0, 0, POSIX_FADV_WILLNEED)) == -1) {
+			fprintf(stderr, "posix_advise() error : %s\n", strerror(errno));
+			exit(1);
+		}
+
+		/* close the file */
+		close(fd);
+
+		/* open again for POSIX_FADV_DONTNEED */
+		if ((fd = open(filename, ((opt_readonly && !opt_openrw) ?
+					 O_RDONLY : O_RDWR) | O_CREAT, 0666)) < 0) {
+			fprintf(stderr, "%s: failed to open `%s': %s\n",
+				ourname, filename, strerror(errno));
+			exit(1);
+		}
+
+		/* advise : DONTNEED*/
+		if ((posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)) == -1) {
+			fprintf(stderr, "posix_advise() error : %s\n", strerror(errno));
+			exit(1);
+		}
+
+		close(fd);
+	}
+
+	if (opt_mincore) {
+		unsigned long length_of_vector = ((bytes/getpagesize()) + 1);
+		unsigned char *ptr = NULL; /* initialize to NULL */
+
+		if ((ptr = (unsigned char *)malloc((sizeof(char)) * length_of_vector)) == NULL) {
+			fprintf(stderr, "Unable to allocate requested memory");
+			fprintf(stdout, "exiting now...");
+			exit(1);
+		}
+
+		if ((mincore(prealloc, bytes, ptr)) == -1) {
+			fprintf(stderr, "mincore failed with error: %s", strerror(errno));
+			free(ptr);
+			exit(1);
+		}
+
+		free(ptr);
+		return 0;
+	}
+
+	if (opt_mincore_hugepages) {
+		int i;
+		int number_of_pages;
+
+		unsigned char *ptr;
+		unsigned char *p = (unsigned char *)allocate_hugepage_segment(bytes);
+		unsigned long pagesize = HUGE_PAGE_SIZE;
+
+		char modify_nr_hugepages[50];
+
+		/* error checking done inside the mincore_hugepages function */
+		ptr = mincore_hugepages(p, bytes);
+
+		/* change protection of the hugepage segment */
+		if (mprotect(p, bytes, PROT_WRITE) == -1) {
+			fprintf(stderr, "mprotect error: %s", strerror(errno));
+			exit(1);
+		}
+
+		number_of_pages = bytes/pagesize;
+
+		/* copy on write for allocating child address space */
+		for (i = 0; i < number_of_pages; i++)
+			p[i * pagesize] = (char) 1;
+
+		sprintf(modify_nr_hugepages, "echo 5 > /proc/sys/vm/nr_hugepages\n");
+
+		if ((system(modify_nr_hugepages)) == -1) {
+			fprintf(stderr, "bash command failed\n");
+			exit(1);
+		}
+
+		/* free the shm segment */
+		shm_free(seg_id);
+		return 0;		/* return with out doing anything */
+	}
 
 	if (nr_task)
 		return do_tasks();
