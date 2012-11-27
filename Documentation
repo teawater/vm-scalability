@@ -1,0 +1,138 @@
+********************************************************************************
+*                                                                              *
+*                                                                              *
+*                              Documentation                                   *
+*                                                                              *
+*                                                                              *
+********************************************************************************
+
+
+The motivation behind this suite is to exercise functions and regions of the
+mm/ of the Linux kernel which are of interest to us. There are many more
+regions which have not been covered by the test cases.
+
+
+################################################################################
+#                                  KERNEL CONFIGURATION                        #
+################################################################################
+
+The test suite was developed with the help of gcov code coverage analysis tool.
+Gcov can be enabled as a configuration option in linux kernel 2.6 and upwards.
+GCOV gives a per line execution count for the source files. The supporting tool
+versions that were used in the development of the suite are
+
+gcov   - 4.6.3
+gcc    - 4.6.3
+Kernel - 3.4
+
+The test kernel needs to be configured with the following options set
+
+        CONFIG_LOCK_STAT=y
+
+        CONFIG_GCOV_KERNEL=y
+        CONFIG_GCOV_PROFILE_ALL=y
+
+        CONFIG_PERF_EVENTS=y
+        CONFIG_FTRACE_SYSCALLS=y
+
+        CONFIG_TRANSPARENT_HUGEPAGE=y
+
+Once the test kernel has been compiled and installed, a debugfs is mounted on
+/sys/kernel.  writing to the file /sys/kernel/debug/gcov/reset resets all the
+counters. The directory /sys/kernel/debug/gcov/ also has a link to the build
+directory on the test system. For more information about setting up gcov,
+consult the gcov documentation.
+
+
+################################################################################
+#                                    FILES                                     #
+################################################################################
+
+hw_vars: This file is the interface between the system and the suite and
+provides the system configuration environment information like total memory,
+cpus, nr_hugepages etc. All the /proc/meminfo output can be extracted using
+this file.
+
+This file also has functions to create and delete sparse files in the
+$SPARSE_ROOT directory which is set to /tmp/vm-scalability. Most of the cases
+work on these files. The sparse root could be made to be of either the btrfs,
+ext4 or the xfs type by suitable editing the hw_vars file.
+
+run_cases: This file first resets the counters and then executes all the test
+cases one by one. Some of the functions are invoked only during startup and are
+reset before the cases are run. Hence some cases need to enable them again via
+the case script before calling the executables so that the neccessary invoking
+functions are counted for in the source_file.gcov. Similary, some of the
+functions are invoked dynamically when a system configuration like nr_hugepages
+changes during the execution of the program. Cases like that have been covered
+by resetting such parameters from within the program.
+
+cases-*: These files call the executable files with suitable options. Some of
+them have multithreaded option while some dont.
+
+
+################################################################################
+#                                    USAGE                                     #
+################################################################################
+
+cd /path/to/suite/directory
+make all
+./run
+gcov -o /path/to/build/directory/with/the/.gcno <source_file>.c
+
+the last command produces the source_file.c.gcov file which has the coverage
+information for each line of the mm .c and .f files.
+
+Note: scripts to aumatically gather the gcno/gcda files and extract the
+source_file.gcov data coverage files are available in the gcov documentation.
+
+The cases in the suite call an exucutable file with options. Most of the cases
+work on usemem. Some of the cases that call other ececutables have been written
+in seperate files in order to modularise the code and have been named based on
+the kernel functionality they exercise.
+
+Some of the cases merely call trivial system calls and do not do anything else.
+They can be extended suitably as per need.
+
+Some cases like case-migration, case-mbind etc need a numa setup. This was
+achieved using the numa=fake=<value>. The value is the number of nodes to be
+emulated. The suite was tested with value = 2, which is the minimum value for
+inter-core page migration. passed as a kernel boot option. Those cases that
+require the numa setup need to be linked with -lnuma flag and the libnuma has
+to be installed in the system. The executables that these cases call have been
+taken from the numactl documentation and slightly modified. They have been
+found to work on a 2 node numa-emulated machine.
+
+cases which require the sysfs parameters to be using echo <value> >
+sysfs_parameter set may need tweaking based on the system configuration. The
+default values used in the case scripts may not scale well when systems
+parameters are scaled. For example, for systems with higher memory, the
+/sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan may be needed to
+be set to a higher value or the scan_sleep_millisecs needs to be reduced or
+both. Failure to scale the values may result in disproportional or sometimes,
+no observable coverage in corresponding functions.
+
+cases can be run individually using
+
+./case-name
+
+with the suite directory as pwd. The scripts work under this assumption. Also,
+care has to taken to make sure that the sparse root is mounted. The run_cases
+script takes care of mounting the sparse partition before running the scripts.
+
+Hugepages are assumed to be of 2MB.
+
+
+################################################################################
+#                                  WARNING                                     #
+################################################################################
+
+The coverage analysis with gcov enabled by setting the
+
+CONFIG_GCOV_KERNEL=y
+CONFIG_GCOV_PROFILE_ALL=y
+
+configuration options, profiles the entire kernel. Hence the system boot time
+in considerably increased and the sytem runs a little slower too. Enabling
+these configuration parametrs on high-end server systems have been observed to
+cause boot problems or unstable kernels with or without a lot of errors.
