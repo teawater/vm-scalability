@@ -17,10 +17,16 @@ PIDFILE=$SPARSE_ROOT/${0/.*case-/}.pid
 create_sparse_root () {
 	truncate -s $((256<<20)) $SPARSE_ROOT.img
 	# mkfs.btrfs $SPARSE_ROOT.img > /dev/null
-	mkfs.ext3 -F $SPARSE_ROOT.img > /dev/null
+	mkfs.ext4 -F $SPARSE_ROOT.img > /dev/null
 	# mkfs.xfs $SPARSE_ROOT.img > /dev/null
 	[[ -d $SPARSE_ROOT ]] || mkdir $SPARSE_ROOT
-	mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT
+
+	# check if already mounted
+	if grep -qs "$SPARSE_ROOT" /proc/mounts;then
+		echo "$SPARSE_ROOT already mounted"
+	else
+		mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT
+	fi
 }
 
 remove_sparse_root () {
@@ -32,8 +38,11 @@ remove_sparse_root () {
 create_sparse_file () {
 	name=$1
 	size=$2
+	# echo "$name is of size $size"
 	truncate $name -s $size
 	# dd if=/dev/zero of=$name bs=1k count=1 seek=$((size >> 10)) 2>/dev/null
+	# ls $SPARSE_ROOT
+	# ls /tmp/vm-scalability/*
 }
 
 
@@ -57,3 +66,4 @@ while read key val unit; do
 done < /proc/meminfo
 
 mem=$((MemTotal << 10))
+hugepagesize=$((Hugepagesize << 10))
