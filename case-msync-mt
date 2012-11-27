@@ -1,0 +1,11 @@
+#!/bin/bash
+
+source ./hw_vars
+
+SIZE=$((mem / 1000))
+
+create_sparse_file $SPARSE_FILE $SIZE
+
+$USEMEM -S -t $nr_cpu -f $SPARSE_FILE -F --prealloc --open-rw --random  $SIZE
+
+rm $SPARSE_FILE
