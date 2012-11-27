@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#
+# Exercises code in mremap.c of mm/
+#
+# First creates a sparse file and then maps it to the VM of calling
+#
+# process. Then remaps it after scaling it by SCALE_FACTOR defined in usemem.
+#
+
+source ./hw_vars
+
+for i in `seq $nr_cpu`
+do
+	create_sparse_file $SPARSE_FILE-$i $((mem / nr_cpu/ 10))
+	$USEMEM -t  $nr_cpu -f $SPARSE_FILE-$i -E --prealloc --readonly --random $((mem / nr_cpu / 10)) &
+done
+wait
+
+rm $SPARSE_FILE-*
