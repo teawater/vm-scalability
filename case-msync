@@ -1,0 +1,14 @@
+#!/bin/bash
+
+source ./hw_vars
+
+SIZE=$((mem / 30))
+
+for i in `seq $nr_cpu`
+do
+	create_sparse_file $SPARSE_FILE-$i $SIZE
+	$USEMEM -S -f $SPARSE_FILE-$i -F --prealloc --open-rw --random  $SIZE &
+done
+wait
+
+rm $SPARSE_FILE-*
