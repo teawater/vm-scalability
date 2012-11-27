@@ -1,0 +1,21 @@
+#!/bin/bash
+
+#
+# Exercises functions in fremap.c of mm/
+#
+#
+source ./hw_vars
+
+USEMEM_REMAP=./usemem_remap
+
+SIZE=$((mem /nr_cpu / 10))
+
+
+for i in $(seq $nr_cpu)
+do
+	create_sparse_file $SPARSE_FILE-$i $SIZE
+	$USEMEM_REMAP  $SPARSE_FILE-$i $SIZE &
+done
+wait
+
+rm $SPARSE_FILE-*
