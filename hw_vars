@@ -1,6 +1,10 @@
 #!/bin/bash
 
-USEMEM=./usemem
+if [[ $runtime ]]; then
+	USEMEM="./usemem --runtime $runtime"
+else
+	USEMEM=./usemem
+fi
 
 SHM_FILE=/dev/shm/sparse-${0/.*case-/}
 
