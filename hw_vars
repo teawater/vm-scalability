@@ -1,6 +1,8 @@
 #!/bin/bash
 
-if [[ $runtime ]]; then
+if [[ $USEMEM ]]; then
+	:
+elif [[ $runtime ]]; then
 	USEMEM="./usemem --runtime $runtime"
 else
 	USEMEM=./usemem
