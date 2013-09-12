@@ -23,7 +23,7 @@ PIDFILE=$SPARSE_ROOT/${0/.*case-/}.pid
 create_sparse_root () {
 	truncate -s $((256<<20)) $SPARSE_ROOT.img
 	# mkfs.btrfs $SPARSE_ROOT.img > /dev/null
-	mkfs.ext4 -F $SPARSE_ROOT.img > /dev/null
+	mkfs.ext4 -q -F $SPARSE_ROOT.img > /dev/null
 	# mkfs.xfs $SPARSE_ROOT.img > /dev/null
 	[[ -d $SPARSE_ROOT ]] || mkdir $SPARSE_ROOT
 
