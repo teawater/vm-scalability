@@ -10,11 +10,9 @@
 source ./hw_vars
 
 
-SIZE=$((mem / 40))
-
 for i in `seq $nr_cpu`
 do
-	create_sparse_file $SPARSE_FILE-$i $SIZE
+	create_sparse_file $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu))
 	$USEMEM -D $SPARSE_FILE-$i --open-rw &
 done
 wait

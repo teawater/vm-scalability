@@ -12,8 +12,8 @@ source ./hw_vars
 
 for i in `seq $nr_cpu`
 do
-	create_sparse_file $SPARSE_FILE-$i $((mem / nr_cpu/ 10))
-	$USEMEM -t  $nr_cpu -f $SPARSE_FILE-$i -E --prealloc --readonly --random $((mem / nr_cpu / 10)) &
+	create_sparse_file $SPARSE_FILE-$i $ROTATE_BYTES
+	$USEMEM -t $nr_cpu -f $SPARSE_FILE-$i -E --prealloc --readonly --random $((ROTATE_BYTES / nr_cpu)) &
 done
 wait
 

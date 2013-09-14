@@ -73,3 +73,11 @@ done < /proc/meminfo
 
 mem=$((MemTotal << 10))
 hugepagesize=$((Hugepagesize << 10))
+
+if [[ $ROTATE_BYTES ]]; then
+	:
+elif [[ $runtime ]]; then
+	ROTATE_BYTES=$((1<<48))
+else
+	ROTATE_BYTES=$mem
+fi

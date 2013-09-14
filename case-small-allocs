@@ -5,4 +5,4 @@
 
 source ./hw_vars
 
-$USEMEM -n $nr_cpu --readonly --unit $((10 * pagesize)) $((10 * mem / nr_cpu))
+$USEMEM -n $nr_cpu --readonly --unit $((10 * pagesize)) $((ROTATE_BYTES / nr_cpu))

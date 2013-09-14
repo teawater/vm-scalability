@@ -8,13 +8,10 @@ source ./hw_vars
 
 USEMEM_REMAP=./usemem_remap
 
-SIZE=$((mem /nr_cpu / 10))
-
-
 for i in $(seq $nr_cpu)
 do
-	create_sparse_file $SPARSE_FILE-$i $SIZE
-	$USEMEM_REMAP  $SPARSE_FILE-$i $SIZE &
+	create_sparse_file $SPARSE_FILE-$i $ROTATE_BYTES
+	$USEMEM_REMAP  $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu)) &
 done
 wait
 

@@ -2,4 +2,4 @@
 
 source ./hw_vars
 
-$USEMEM -n $nr_cpu --readonly --random $((mem / nr_cpu / 2))
+$USEMEM -n $nr_cpu --readonly --random $((ROTATE_BYTES / nr_cpu))

@@ -17,7 +17,7 @@ source ./hw_vars
 
 for i in `seq 1 $nr_cpu`
 do
-	create_sparse_file $SPARSE_FILE-$i $((10 * mem / nr_cpu))
+	create_sparse_file $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu))
 	cp $SPARSE_FILE-$i /dev/null &
 	cp $SPARSE_FILE-$i /dev/null &
 done

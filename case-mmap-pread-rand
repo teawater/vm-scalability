@@ -2,8 +2,8 @@
 
 source ./hw_vars
 
-create_sparse_file $SPARSE_FILE $((mem / 2))
+create_sparse_file $SPARSE_FILE $((ROTATE_BYTES))
 
-$USEMEM -n $nr_cpu -f $SPARSE_FILE --readonly --random $((mem / 2))
+$USEMEM -n $nr_cpu -f $SPARSE_FILE --readonly --random $((ROTATE_BYTES / nr_cpu))
 
 rm $SPARSE_FILE
