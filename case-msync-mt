@@ -2,7 +2,7 @@
 
 source ./hw_vars
 
-SIZE=$((mem / 1000))
+SIZE=$((mem / nr_cpu / 2))
 
 create_sparse_file $SPARSE_FILE $SIZE
 

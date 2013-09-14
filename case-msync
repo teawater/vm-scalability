@@ -2,7 +2,7 @@
 
 source ./hw_vars
 
-SIZE=$((mem / 30))
+SIZE=$((mem / nr_cpu / 2))
 
 for i in `seq $nr_cpu`
 do
