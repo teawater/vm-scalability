@@ -1,11 +1,9 @@
 #!/bin/bash
 
-if [[ $USEMEM ]]; then
-	:
-elif [[ $runtime ]]; then
-	USEMEM="./usemem --runtime $runtime"
+if [[ $runtime ]]; then
+	USEMEM="$CMD ./usemem --runtime $runtime"
 else
-	USEMEM=./usemem
+	USEMEM="$CMD ./usemem"
 fi
 
 SHM_FILE=/dev/shm/sparse-${0/.*case-/}
@@ -21,9 +19,9 @@ PIDFILE=$SPARSE_ROOT/${0/.*case-/}.pid
 
 # sparse files won't work as expected on tmpfs/nfs
 create_sparse_root () {
-	truncate -s $((256<<20)) $SPARSE_ROOT.img
+	$CMD truncate -s $((256<<20)) $SPARSE_ROOT.img
 	# mkfs.btrfs $SPARSE_ROOT.img > /dev/null
-	mkfs.ext4 -q -F $SPARSE_ROOT.img > /dev/null
+	$CMD mkfs.ext4 -q -F $SPARSE_ROOT.img
 	# mkfs.xfs $SPARSE_ROOT.img > /dev/null
 	[[ -d $SPARSE_ROOT ]] || mkdir $SPARSE_ROOT
 
@@ -31,21 +29,21 @@ create_sparse_root () {
 	if grep -qs "$SPARSE_ROOT" /proc/mounts;then
 		echo "$SPARSE_ROOT already mounted"
 	else
-		mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT
+		$CMD mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT
 	fi
 }
 
 remove_sparse_root () {
-	umount $SPARSE_ROOT
+	$CMD umount $SPARSE_ROOT
 	# rmdir $SPARSE_ROOT
-	rm $SPARSE_ROOT.img
+	$CMD rm $SPARSE_ROOT.img
 }
 
 create_sparse_file () {
 	name=$1
 	size=$2
 	# echo "$name is of size $size"
-	truncate $name -s $size
+	$CMD truncate $name -s $size
 	# dd if=/dev/zero of=$name bs=1k count=1 seek=$((size >> 10)) 2>/dev/null
 	# ls $SPARSE_ROOT
 	# ls /tmp/vm-scalability/*
