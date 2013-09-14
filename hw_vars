@@ -58,6 +58,10 @@ nr_cpu=$(grep -c processor /proc/cpuinfo)
 nr_node=$(echo /sys/devices/system/node/node* | wc -w)
 
 while read key val; do
+	[[ $key && $val =~ [0-9]+ ]] || {
+		echo "invalid vmstat line: $key $val"
+		break
+	}
 	eval $key=$val
 done < /proc/vmstat
 
