@@ -10,8 +10,8 @@ USEMEM_REMAP=./usemem_remap
 
 for i in $(seq $nr_cpu)
 do
-	create_sparse_file $SPARSE_FILE-$i $ROTATE_BYTES
-	$USEMEM_REMAP  $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu)) &
+	create_sparse_file $SPARSE_FILE-$i $((mem / nr_cpu / 2))
+	$USEMEM_REMAP  $SPARSE_FILE-$i $((mem / nr_cpu / 2)) &
 done
 wait
 
