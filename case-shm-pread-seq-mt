@@ -2,7 +2,7 @@
 
 source ./hw_vars
 
-create_sparse_file $SHM_FILE $((mem / 2))
+create_sparse_file $SHM_FILE $mem
 
 $USEMEM -t $nr_cpu -f $SHM_FILE --readonly $((mem / 2))
 

@@ -6,7 +6,7 @@ SIZE=$((mem / nr_cpu / 2))
 
 for i in `seq $nr_cpu`
 do
-	create_sparse_file $SPARSE_FILE-$i $SIZE
+	create_sparse_file $SPARSE_FILE-$i $mem
 	$USEMEM -S -f $SPARSE_FILE-$i -F --prealloc --open-rw --random  $SIZE &
 done
 wait

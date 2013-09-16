@@ -4,7 +4,7 @@ source ./hw_vars
 
 SIZE=$((mem / nr_cpu / 2))
 
-create_sparse_file $SPARSE_FILE $SIZE
+create_sparse_file $SPARSE_FILE $mem
 
 $USEMEM -S -t $nr_cpu -f $SPARSE_FILE -F --prealloc --open-rw --random  $SIZE
 
