@@ -532,12 +532,19 @@ int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 long do_units(unsigned long bytes)
 {
 	struct drand48_data rand_data;
+	unsigned long remain_bytes = bytes;
+	unsigned long delta_us;
+	unsigned long throughput;
+	struct timeval start;
+	struct timeval stop;
 
 	if (opt_detach)
 		detach();
 
 	if (opt_randomise)
 		os_random_seed(time(0) ^ getpid(), &rand_data);
+
+	gettimeofday(&start, NULL);
 
 	if (!unit)
 		unit = bytes;
@@ -546,13 +553,20 @@ long do_units(unsigned long bytes)
 	 * usemem -n 10000 0 --detach --sleep 10
 	 */
 	do {
-		unsigned long size = min(bytes, unit);
+		unsigned long size = min(remain_bytes, unit);
 
 		do_unit(size, &rand_data);
-		bytes -= size;
+		remain_bytes -= size;
 		if (runtime_exceeded())
 			break;
-	} while (bytes);
+	} while (remain_bytes);
+
+	gettimeofday(&stop, NULL);
+	delta_us = (stop.tv_sec - start.tv_sec) * 1000000 +
+		   (stop.tv_usec - start.tv_usec);
+	throughput = (((bytes - remain_bytes) * 1000000ULL) >> 10) / delta_us;
+	printf("%lu bytes / %lu usecs = %lu KB/s\n",
+	       bytes - remain_bytes, delta_us, throughput);
 
 	if (opt_detach && up(sem_id))
 		perror("up");
