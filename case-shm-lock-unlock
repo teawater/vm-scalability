@@ -11,12 +11,12 @@
 source ./hw_vars
 
 #segment size being requested
-SHM_SIZE=$(((mem / nr_cpu) / 10))
+SHM_SIZE=$((shm_size / nr_cpu / 2))
 
 #check for max shared memory allowed on system
 MAX_SHARE_SEGMENT=$(</proc/sys/kernel/shmmax)
 
-echo "MAX SEGMENT is $MAX_SHARE_SEGMENT total asking is $((mem / 10))"
+echo "MAX SEGMENT is $MAX_SHARE_SEGMENT total asking is $((shm_size / 2))"
 
 #check to see if the request can be satisfied else exit with error
 if [ $MAX_SHARE_SEGMENT -lt $SHM_SIZE ]

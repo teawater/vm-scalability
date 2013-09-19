@@ -74,6 +74,8 @@ while read key val unit; do
 done < /proc/meminfo
 
 mem=$((MemTotal << 10))
+shm_size=$(/usr/bin/stat -f -c "%b*%S" /dev/shm/)
+shm_size=$((shm_size))
 hugepagesize=$((Hugepagesize << 10))
 
 if [[ $ROTATE_BYTES ]]; then

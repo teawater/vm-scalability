@@ -14,8 +14,8 @@ source ./hw_vars
 
 for i in `seq 1 $nr_cpu`
 do
-	create_sparse_file $SHM_FILE-$i $((10 * mem))
-	$USEMEM -f $SHM_FILE-$i --readonly $((10 * mem / nr_cpu)) &
+	create_sparse_file $SHM_FILE-$i $shm_size
+	$USEMEM -f $SHM_FILE-$i --readonly $((shm_size / nr_cpu / 2)) &
 done
 
 wait

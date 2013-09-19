@@ -2,8 +2,8 @@
 
 source ./hw_vars
 
-create_sparse_file $SHM_FILE $((mem / 2))
+create_sparse_file $SHM_FILE $shm_size
 
-$USEMEM -n $nr_cpu -f $SHM_FILE --prealloc --readonly $((mem / 2))
+$USEMEM -n $nr_cpu -f $SHM_FILE --prealloc --readonly $((shm_size / 2))
 
 rm $SHM_FILE
