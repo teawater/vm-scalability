@@ -20,9 +20,9 @@ PIDFILE=$SPARSE_ROOT/${0/.*case-/}.pid
 # sparse files won't work as expected on tmpfs/nfs
 create_sparse_root () {
 	$CMD truncate -s $((mem / nr_cpu)) $SPARSE_ROOT.img
-	# mkfs.btrfs $SPARSE_ROOT.img > /dev/null
-	$CMD mkfs.ext4 -q -F $SPARSE_ROOT.img
-	# mkfs.xfs $SPARSE_ROOT.img > /dev/null
+	$CMD mkfs.btrfs $SPARSE_ROOT.img > /dev/null
+	# $CMD mkfs.ext4 -q -F $SPARSE_ROOT.img
+	# $CMD mkfs.xfs -q $SPARSE_ROOT.img > /dev/null
 	[[ -d $SPARSE_ROOT ]] || mkdir $SPARSE_ROOT
 
 	# check if already mounted
