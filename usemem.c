@@ -46,6 +46,7 @@
 
 char *ourname;
 int pagesize;
+unsigned long done_bytes = 0;
 unsigned long bytes = 0;
 unsigned long unit = 0;
 unsigned long step = 0;
@@ -424,14 +425,21 @@ void shm_unlock(int seg_id)
 	shmctl(seg_id, SHM_UNLOCK, NULL);
 }
 
-int do_unit(unsigned long bytes, struct drand48_data *rand_data)
+unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 {
+	unsigned long rw_bytes;
 	unsigned long i;
 	unsigned long *p;
 	int rep;
 	int c;
 
-	p = prealloc ? : allocate(bytes);
+	if (prealloc) {
+		p = prealloc;
+		rw_bytes = 0;
+	} else {
+		p = allocate(bytes);
+		rw_bytes = bytes / 8;
+	}
 
 	for (rep = 0; rep < reps; rep++) {
 		unsigned long m = bytes / sizeof(*p);
@@ -462,6 +470,9 @@ int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 				d = p[idx];	/* read data into d */
 			else
 				p[idx] = idx;	/* write data into p[idx] */
+
+			rw_bytes += sizeof(*p);
+
 			if (!(i & 0xffff) && runtime_exceeded()) {
 				rep = reps;
 				break;
@@ -498,7 +509,7 @@ int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 				printf("remapping locked memory.....done!\n\n");
 				munlock(p, bytes);
 				printf("unlocking memory ..... done!\n\n");
-				return 0;
+				return rw_bytes;
 			case 'u':
 				munlock(p, bytes);
 				printf("unlocking memory ..... done!\n");
@@ -521,30 +532,26 @@ int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 				break;
 			case 'q':
 				printf("Quitting now\n");
-				return 0;
+				return rw_bytes;
 			}
 		}
 	}
 
-	return 0;
+	return rw_bytes;
 }
 
 long do_units(unsigned long bytes)
 {
 	struct drand48_data rand_data;
-	unsigned long remain_bytes = bytes;
 	unsigned long delta_us;
 	unsigned long throughput;
-	struct timeval start;
-	struct timeval stop;
+	unsigned long unit_bytes = done_bytes;
 
 	if (opt_detach)
 		detach();
 
 	if (opt_randomise)
 		os_random_seed(time(0) ^ getpid(), &rand_data);
-
-	gettimeofday(&start, NULL);
 
 	if (!unit)
 		unit = bytes;
@@ -553,20 +560,24 @@ long do_units(unsigned long bytes)
 	 * usemem -n 10000 0 --detach --sleep 10
 	 */
 	do {
-		unsigned long size = min(remain_bytes, unit);
+		unsigned long size = min(bytes, unit);
 
-		do_unit(size, &rand_data);
-		remain_bytes -= size;
+		unit_bytes += do_unit(size, &rand_data);
+		bytes -= size;
 		if (runtime_exceeded())
 			break;
-	} while (remain_bytes);
+	} while (bytes);
 
-	gettimeofday(&stop, NULL);
-	delta_us = (stop.tv_sec - start.tv_sec) * 1000000 +
-		   (stop.tv_usec - start.tv_usec);
-	throughput = (((bytes - remain_bytes) * 1000000ULL) >> 10) / delta_us;
-	printf("%lu bytes / %lu usecs = %lu KB/s\n",
-	       bytes - remain_bytes, delta_us, throughput);
+	if (unit_bytes) {
+		struct timeval stop;
+
+		gettimeofday(&stop, NULL);
+		delta_us = (stop.tv_sec - start_time.tv_sec) * 1000000 +
+			   (stop.tv_usec - start_time.tv_usec);
+		throughput = ((unit_bytes * 1000000ULL) >> 10) / delta_us;
+		printf("%lu bytes / %lu usecs = %lu KB/s\n",
+		       unit_bytes, delta_us, throughput);
+	}
 
 	if (opt_detach && up(sem_id))
 		perror("up");
@@ -760,8 +771,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (runtime_secs)
-		gettimeofday(&start_time, NULL);
+	gettimeofday(&start_time, NULL);
 
 	bytes = memparse(argv[optind], NULL);
 
@@ -774,11 +784,15 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (prealloc)
+	if (prealloc) {
 		prealloc = allocate(bytes);
+		done_bytes = bytes / 8;
+	}
 
-	if (opt_remap)
+	if (opt_remap) {
 		prealloc = mremap(prealloc, bytes, SCALE_FACTOR * bytes, MREMAP_MAYMOVE);
+		done_bytes += bytes / 8;
+	}
 
 	/* Allocate a shared sysV IPC shared object of size "bytes" */
 	if (opt_shm) {
@@ -789,6 +803,8 @@ int main(int argc, char *argv[])
 
 		/* mark for destruction */
 		shm_free(seg_id);
+
+		done_bytes += bytes / 8;
 	}
 
 	/* Advise file access pattern */
@@ -816,6 +832,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
+		done_bytes += bytes;
 		close(fd);
 	}
 
@@ -834,6 +851,8 @@ int main(int argc, char *argv[])
 			free(ptr);
 			exit(1);
 		}
+
+		done_bytes += bytes / 8;
 
 		free(ptr);
 		return 0;
@@ -870,6 +889,8 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "bash command failed\n");
 			exit(1);
 		}
+
+		done_bytes += bytes / 8;
 
 		/* free the shm segment */
 		shm_free(seg_id);
