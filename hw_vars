@@ -81,7 +81,7 @@ hugepagesize=$((Hugepagesize << 10))
 if [[ $ROTATE_BYTES ]]; then
 	:
 elif [[ $runtime ]]; then
-	ROTATE_BYTES=$((1<<43))
+	ROTATE_BYTES=$((1<<42))
 else
 	ROTATE_BYTES=$mem
 fi
