@@ -6,11 +6,14 @@ create_sparse_file $SPARSE_FILE $mem
 
 numactl --interleave=all $USEMEM -f $SPARSE_FILE --readonly $((mem/nr_node/2)) --detach --sleep 100000 --pid-file $PIDFILE
 
+pid=$(<$PIDFILE)
+
 for i in `seq $((nr_node-1))`
 do
-	migratepages $(<$PIDFILE) $((i-1)) $i
+	migratepages $pid $((i-1)) $i
 done
 
-kill $(<$PIDFILE)
+kill $pid
 rm $SPARSE_FILE
 rm $PIDFILE
+kill -9 $pid
