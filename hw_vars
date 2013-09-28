@@ -34,7 +34,10 @@ create_sparse_root () {
 }
 
 remove_sparse_root () {
-	$CMD umount $SPARSE_ROOT
+	$CMD umount $SPARSE_ROOT || {
+		df
+		lsof $SPARSE_ROOT
+	}
 	# rmdir $SPARSE_ROOT
 	$CMD rm $SPARSE_ROOT.img
 }
