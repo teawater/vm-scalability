@@ -4,14 +4,32 @@ source ./hw_vars
 
 create_sparse_file $SPARSE_FILE $mem
 
-numactl --interleave=all $USEMEM -f $SPARSE_FILE --readonly $((mem/nr_node/2)) --detach --sleep 100000 --pid-file $PIDFILE
+migrate_unit=$((mem/nr_node/2))
+numactl --interleave=all $USEMEM -f $SPARSE_FILE --readonly $migrate_unit --detach --sleep 100000 --pid-file $PIDFILE
 
 pid=$(<$PIDFILE)
 
-for i in `seq $((nr_node-1))`
+[[ $runtime ]] || runtime=60
+
+start_time=$(date +%s%N)
+start_time=${start_time%???}
+
+count=0
+while :
 do
-	migratepages $pid $((i-1)) $i
+	for i in `seq $((nr_node-1))`
+	do
+		migratepages $pid $((i-1)) $i
+		now=$(date +%s%N)
+		now=${now%???}
+		(( count++ ))
+		(( usecs = now - start_time ))
+		(( usecs > ${runtime}000000 )) && break 2
+	done
 done
+
+throughput=$((count * migrate_unit / usecs))
+echo "$count * $migrate_unit bytes migrated, $usecs usecs, $throughput MB/s"
 
 kill $pid
 rm $SPARSE_FILE
