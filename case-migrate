@@ -34,4 +34,10 @@ echo "$count * $migrate_unit bytes migrated, $usecs usecs, $throughput MB/s"
 kill $pid
 rm $SPARSE_FILE
 rm $PIDFILE
-kill -9 $pid
+
+# the sleep is necessary for umount to succeed
+# it takes some time to kill the usemem process
+while [[ -d /proc/$pid && $(</proc/$pid/comm) = usemem ]]
+do
+	sleep 1
+done
