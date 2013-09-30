@@ -8,11 +8,21 @@ source ./hw_vars
 
 USEMEM_REMAP=./usemem_remap
 
+start_time=$(date +%s%N)
+start_time=${start_time%???}
+
 for i in $(seq $nr_cpu)
 do
 	create_sparse_file $SPARSE_FILE-$i $((mem / nr_cpu / 2))
 	$USEMEM_REMAP  $SPARSE_FILE-$i $((mem / nr_cpu / 2)) &
 done
 wait
+
+now=$(date +%s%N)
+now=${now%???}
+(( usecs = now - start_time ))
+
+throughput=$((mem / 2 / usecs))
+echo "$((mem / 2)) bytes remapped, $usecs usecs, $throughput MB/s"
 
 rm $SPARSE_FILE-*
