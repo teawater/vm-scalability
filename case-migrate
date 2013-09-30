@@ -4,12 +4,14 @@ source ./hw_vars
 
 create_sparse_file $SPARSE_FILE $mem
 
+[[ $runtime ]] || runtime=60
+
 migrate_unit=$((mem/nr_node/2))
-numactl --interleave=all $USEMEM -f $SPARSE_FILE --readonly $migrate_unit --detach --sleep 100000 --pid-file $PIDFILE
+numactl --interleave=all $USEMEM -f $SPARSE_FILE --readonly $migrate_unit --detach --sleep $((runtime * 2)) --pid-file $PIDFILE
 
 pid=$(<$PIDFILE)
-
-[[ $runtime ]] || runtime=60
+rm $PIDFILE
+rm $SPARSE_FILE
 
 start_time=$(date +%s%N)
 start_time=${start_time%???}
@@ -31,13 +33,11 @@ done
 throughput=$((count * migrate_unit / usecs))
 echo "$count * $migrate_unit bytes migrated, $usecs usecs, $throughput MB/s"
 
-kill $pid
-rm $SPARSE_FILE
-rm $PIDFILE
+kill -INT $pid
 
 # the sleep is necessary for umount to succeed
 # it takes some time to kill the usemem process
 while [[ -d /proc/$pid && $(</proc/$pid/comm) = usemem ]]
 do
-	sleep 1
+	sleep 0.1
 done

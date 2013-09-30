@@ -133,7 +133,8 @@ remove_sparse_root
 kill_detached() {
 	for pidfile in $SPARSE_ROOT/*.pid
 	do
-		[[ -s $pidfile ]] && kill $(<$pidfile)
+		[[ -s $pidfile ]] && kill -INT $(<$pidfile)
+		rm $pidfile
 	done
 }
 

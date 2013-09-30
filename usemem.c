@@ -242,15 +242,6 @@ int up(int sem_id)
 	return semop(sem_id, &buf, 1);
 }
 
-void delete_pid_file(void)
-{
-	if (!pid_filename)
-		return;
-
-	if (unlink(pid_filename) < 0)
-		perror(pid_filename);
-}
-
 void update_pid_file(pid_t pid)
 {
 	FILE *file;
@@ -272,10 +263,9 @@ void update_pid_file(pid_t pid)
 void sighandler(int sig, siginfo_t *si, void *arg)
 {
 	up(sem_id);
-	delete_pid_file();
 
-	fprintf(stderr, "Fatal signal %d\n", sig);
-	exit(1);
+	fprintf(stderr, "usemem: exit on signal %d\n", sig);
+	exit(0);
 }
 
 void detach(void)
@@ -318,12 +308,7 @@ void detach(void)
 		 * XXX: SIGKILL cannot be caught.
 		 * The parent will wait for ever if child is OOM killed.
 		 */
-		sigaction(SIGBUS, &sa, NULL);
-
-		if (atexit(delete_pid_file) != 0) {
-			fprintf(stderr, "cannot set exit function\n");
-			exit(1);
-		}
+		sigaction(SIGINT, &sa, NULL);
 	}
 }
 
