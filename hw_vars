@@ -1,10 +1,8 @@
 #!/bin/bash
 
-if [[ $runtime ]]; then
-	USEMEM="$CMD ./usemem --runtime $runtime"
-else
-	USEMEM="$CMD ./usemem"
-fi
+[[ $runtime ]] || runtime=300
+
+USEMEM="$CMD ./usemem --runtime $runtime"
 
 SHM_FILE=/dev/shm/sparse-${0/.*case-/}
 
@@ -81,10 +79,4 @@ shm_size=$(/usr/bin/stat -f -c "%b*%S" /dev/shm/)
 shm_size=$((shm_size))
 hugepagesize=$((Hugepagesize << 10))
 
-if [[ $ROTATE_BYTES ]]; then
-	:
-elif [[ $runtime ]]; then
-	ROTATE_BYTES=$((1<<42))
-else
-	ROTATE_BYTES=$mem
-fi
+ROTATE_BYTES=$((1<<42))

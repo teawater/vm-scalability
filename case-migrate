@@ -4,8 +4,6 @@ source ./hw_vars
 
 create_sparse_file $SPARSE_FILE $mem
 
-[[ $runtime ]] || runtime=60
-
 migrate_unit=$((mem/nr_node/2))
 numactl --interleave=all $USEMEM -f $SPARSE_FILE --readonly $migrate_unit --detach --sleep $((runtime * 2)) --pid-file $PIDFILE
 
