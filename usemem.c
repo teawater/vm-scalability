@@ -264,7 +264,7 @@ void sighandler(int sig, siginfo_t *si, void *arg)
 {
 	up(sem_id);
 
-	fprintf(stderr, "usemem: exit on signal %d\n", sig);
+	printf("usemem: exit on signal %d\n", sig);
 	exit(0);
 }
 
