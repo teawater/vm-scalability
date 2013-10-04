@@ -555,13 +555,18 @@ long do_units(unsigned long bytes)
 
 	if (unit_bytes) {
 		struct timeval stop;
+		char buf[1024];
+		size_t len;
 
 		gettimeofday(&stop, NULL);
 		delta_us = (stop.tv_sec - start_time.tv_sec) * 1000000 +
 			   (stop.tv_usec - start_time.tv_usec);
 		throughput = ((unit_bytes * 1000000ULL) >> 10) / delta_us;
-		printf("%lu bytes / %lu usecs = %lu KB/s\n",
-		       unit_bytes, delta_us, throughput);
+		len = snprintf(buf, sizeof(buf),
+			       "%lu bytes / %lu usecs = %lu KB/s\n",
+			       unit_bytes, delta_us, throughput);
+		fflush(stdout);
+		write(1, buf, len);
 	}
 
 	if (opt_detach && up(sem_id))
