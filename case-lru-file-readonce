@@ -15,7 +15,15 @@ do
 done
 
 wait
+sleep 1
 
-cat /tmp/dd-output-*
-rm  /tmp/dd-output-*
+for file in /tmp/dd-output-*
+do
+	[[ -s $file ]] || {
+		echo "dd output file empty: $file" >&2
+	}
+	cat $file
+	rm  $file
+done
+
 rm `seq -f $SPARSE_FILE-%g 1 $nr_cpu`

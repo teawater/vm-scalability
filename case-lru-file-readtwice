@@ -19,11 +19,19 @@ for i in `seq 1 $nr_cpu`
 do
 	create_sparse_file $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu))
 	timeout -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-1-$i 2>&1 &
-	timeout -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-1-$i 2>&1 &
+	timeout -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-2-$i 2>&1 &
 done
 
 wait
+sleep 1
 
-cat /tmp/dd-output-*
-rm  /tmp/dd-output-*
+for file in /tmp/dd-output-*
+do
+	[[ -s $file ]] || {
+		echo "dd output file empty: $file" >&2
+	}
+	cat $file
+	rm  $file
+done
+
 rm `seq -f $SPARSE_FILE-%g 1 $nr_cpu`
