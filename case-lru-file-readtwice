@@ -18,8 +18,8 @@ source ./hw_vars
 for i in `seq 1 $nr_cpu`
 do
 	create_sparse_file $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu))
-	timeout -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-1-$i 2>&1 &
-	timeout -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-2-$i 2>&1 &
+	timeout --foreground -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-1-$i 2>&1 &
+	timeout --foreground -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > /tmp/dd-output-2-$i 2>&1 &
 done
 
 wait
