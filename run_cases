@@ -17,6 +17,7 @@ reset_stats
 
 source ./hw_vars
 
+mount_tmpfs
 create_sparse_root
 
 TEST_CASES=${@:-$(echo case-*)}
@@ -29,4 +30,5 @@ do
 	echo 3 > /proc/sys/vm/drop_caches   # drop caches after each case is done.
 done
 
+remove_tmpfs
 remove_sparse_root

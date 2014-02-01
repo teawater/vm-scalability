@@ -4,8 +4,8 @@
 
 source ./hw_vars
 
-create_sparse_file /dev/shm/XXX $shm_size
+create_sparse_file $TMPFS_MNT/XXX $shm_size
 
-$USEMEM -f /dev/shm/XXX $((shm_size / 3)) --readonly --detach --sleep 100000 --pid-file $PIDFILE
+$USEMEM -f $TMPFS_MNT/XXX $((shm_size / 3)) --readonly --detach --sleep 100000 --pid-file $PIDFILE
 
-rm /dev/shm/XXX
+rm $TMPFS_MNT/XXX

@@ -100,8 +100,7 @@ echo $((1<<20)) > /proc/sys/kernel/threads-max
 echo 1 > /proc/sys/vm/overcommit_memory
 echo 3 > /proc/sys/vm/drop_caches
 
-mount -o remount,size=0 /dev/shm
-
+mount_tmpfs
 create_sparse_root
 
 for testcase in $TEST_CASES
@@ -117,12 +116,13 @@ do
 	# run again to collect perf stats
 	perf stat -a -e $perf_events -o $OUT_DIR/$testcase/perf-stat ./$testcase
 
-	perf record -afg -o /dev/shm/perf.data ./$testcase 2>/dev/null || continue
-	perf report -g fractal,5 -i /dev/shm/perf.data 2>/dev/null > $OUT_DIR/$testcase/perf-report
+	perf record -afg -o $TMPFS_MNT/perf.data ./$testcase 2>/dev/null || continue
+	perf report -g fractal,5 -i $TMPFS_MNT/perf.data 2>/dev/null > $OUT_DIR/$testcase/perf-report
 done
 
 ./elapsed-time $OUT_DIR
 
+remove_tmpfs
 remove_sparse_root
 
 ################################################################################
