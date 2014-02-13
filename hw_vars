@@ -22,7 +22,7 @@ mount_tmpfs()
 	else
 		mkdir $TMPFS_MNT
 	fi
-	$CMD mount -t tmpfs -o size=0 vm-scalability-tmp $TMPFS_MNT
+	$CMD mount -t tmpfs -o size=100% vm-scalability-tmp $TMPFS_MNT
 
 	shm_size=$(/usr/bin/stat -f -c "%b*%S" $TMPFS_MNT)
 	shm_size=$((shm_size))
