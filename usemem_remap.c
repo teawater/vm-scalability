@@ -33,7 +33,7 @@ int main (int argc, char *argv[])
 		exit(1);
 	}
 
-	size = atoi(argv[2]);
+	size = atol(argv[2]);
 	no_of_pages = size / pagesize;
 
 	if ((fd = open(argv[1], O_RDWR | O_CREAT, 0666)) == -1) {
