@@ -48,7 +48,11 @@ create_sparse_root () {
 	if mountpoint -q $SPARSE_ROOT; then
 		echo "$SPARSE_ROOT already mounted"
 	else
-		$CMD mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT
+		$CMD mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT 2>/dev/null || {
+			local loop_dev=$(losetup -f --show $SPARSE_ROOT.img)
+			[[ $loop_dev ]] || exit
+			mount $loop_dev $SPARSE_ROOT
+		}
 	fi
 }
 
