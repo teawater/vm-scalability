@@ -2,4 +2,4 @@
 
 source ./hw_vars
 
-$USEMEM -t $nr_cpu --prealloc --readonly $((ROTATE_BYTES / nr_cpu))
+$USEMEM -t $nr_cpu --prealloc --readonly $((ROTATE_BYTES))
