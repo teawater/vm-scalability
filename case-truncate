@@ -11,9 +11,15 @@ do
 	cp $SPARSE_FILE-$i /dev/null
 done
 
+t0=$(date +%s.%N)
+
 for i in `seq $nr_cpu`
 do
 	rm $SPARSE_FILE-$i &
 done
 
 wait
+
+t1=$(date +%s.%N)
+
+echo $mem bytes truncated in $t1-$t0 seconds
