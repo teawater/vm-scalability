@@ -2,4 +2,6 @@
 
 source ./hw_vars
 
-$USEMEM -t $nr_cpu --readonly $((ROTATE_BYTES / nr_cpu))
+(( PTE_LIMIT > AS_LIMIT )) && PTE_LIMIT=$AS_LIMIT
+
+$USEMEM -t $nr_cpu --readonly $((PTE_LIMIT / nr_cpu))
