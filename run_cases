@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # execute all the test cases
 
@@ -15,7 +15,7 @@ reset_stats () {
 
 reset_stats
 
-source ./hw_vars
+. ./hw_vars
 
 mount_tmpfs
 create_sparse_root

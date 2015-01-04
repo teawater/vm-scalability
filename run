@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ################################################################################
 # options 
@@ -20,7 +20,7 @@ do
 done
 shift $(($OPTIND - 1))
 
-[[ $(whoami) != root ]] && echo "root privilege required" && exit
+[ $(whoami) != root ] && echo "root privilege required" && exit
 
 ################################################################################
 # stats
@@ -33,13 +33,14 @@ reset_stats () {
 save_stats () {
 	base_dir=$(pwd)
 	mkdir -p $1
-	pushd $1 > /dev/null
+	(
+	cd $1
 	cp /proc/lock_stat . && chmod go+r lock_stat
 	$base_dir/gcov-mm
 	$base_dir/gcov-fun  mm/*.?.gcov | sort -nr     > top-functions
 	$base_dir/gcov-lock mm/*.?.gcov | sort -nr -k4 > top-locks
-	rm mm/*.{gcno,gcda}
-	popd > /dev/null
+	rm mm/*.gcno mm/*.gcda
+	)
 }
 
 perf_events="
@@ -90,7 +91,7 @@ perf_events=$(echo $perf_events | sed 's/ / -e /g')
 ################################################################################
 # run it
 
-source ./hw_vars
+. ./hw_vars
 
 OUT_DIR=$(hostname)-${nr_cpu}c-$(((mem + (1<<29))>>30))g
 TEST_CASES=${@:-$(echo case-*)}
@@ -105,8 +106,8 @@ create_sparse_root
 
 for testcase in $TEST_CASES
 do
-	[[ $testcase =~ '000' ]] && continue
-	[[ -x ./$testcase ]] || continue
+	[ "${testcase#*000}" != "$testcase" ] && continue
+	[ -x "./$testcase" ] || continue
 	[[ -n $KEEP_EXISTING_DATA && -d $OUT_DIR/$testcase ]] && continue
 	reset_stats
 	echo $testcase
@@ -128,12 +129,12 @@ remove_sparse_root
 ################################################################################
 # run combined
 
-[[ -z $RUN_COMBINED ]] && exit # only run combined cases when asked
+[ -z "$RUN_COMBINED" ] && exit # only run combined cases when asked
 
 kill_detached() {
 	for pidfile in $SPARSE_ROOT/*.pid
 	do
-		[[ -s $pidfile ]] && kill -INT $(<$pidfile)
+		[ -s "$pidfile" ] && kill -INT $(cat $pidfile)
 		rm $pidfile
 	done
 }
@@ -142,15 +143,15 @@ for testcase in $TEST_CASES
 do
 	for testcase2 in $TEST_CASES
 	do
-		[[ -x ./$testcase ]] || continue
-		[[ -x ./$testcase2 ]] || continue
-		[[ $testcase = $testcase2 ]] && continue
+		[ -x "./$testcase" ] || continue
+		[ -x "./$testcase2" ] || continue
+		[ $testcase = $testcase2 ] && continue
 		order="$testcase\n$testcase2"
 		order2=$(echo $order | sort)
-		[[ $order != $order2 ]] && continue
-		[[ $testcase2 =~ '000' ]] && continue
+		[ $order != $order2 ] && continue
+		[ "${testcase2#*000}" != "$testcase2" ] && continue
 		reset_stats
-		if [[ $testcase =~ '000' ]]; then
+		if [ "${testcase#*000}" != "$testcase" ]; then
 			./$testcase  # take some memory (mem/3)
 			./$testcase2 # flush memory (mem*10)
 		else
