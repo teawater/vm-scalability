@@ -114,6 +114,7 @@ reclaimable=$((reclaimable * pagesize))
 while read key val unit; do
 	key=${key%%:}
 	key=${key%%)}
+	[ "${key#*(}" != "$key" ] &&
 	key=${key%(*}_${key#*(}
 	eval $key=$val
 done < /proc/meminfo
