@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
 # prevent OOM: limit pagetable pages to half memory
-(( ROTATE_BYTES > (mem << 8) )) && (( ROTATE_BYTES = (mem << 8) ))
+[ "$ROTATE_BYTES" -gt $(( mem << 8 )) ] && ROTATE_BYTES=$(( mem << 8 ))
 
 $USEMEM -t $nr_cpu --readonly --random $((ROTATE_BYTES / nr_cpu))

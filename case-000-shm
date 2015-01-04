@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # fill memory with shm/tmpfs pages
 
-source ./hw_vars
+. ./hw_vars
 
 create_sparse_file $TMPFS_MNT/XXX $shm_size
 

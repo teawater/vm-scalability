@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises code in mincore.c mm/
 #
 
-source ./hw_vars
+. ./hw_vars
 
 # set number of hugepages in the system
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
@@ -12,7 +12,7 @@ echo $((mem/Hugepagesize/1024 / 20)) > /proc/sys/vm/nr_hugepages
 echo $((mem/Hugepagesize/1024 / 10)) > /proc/sys/vm/nr_overcommit_hugepages
 
 #check for max shared memory allowed on system
-MAX_HUGEPAGES=$(($(</proc/sys/vm/nr_hugepages)+$(</proc/sys/vm/nr_overcommit_hugepages)))
+MAX_HUGEPAGES=$(( $(cat /proc/sys/vm/nr_hugepages) + $(cat /proc/sys/vm/nr_overcommit_hugepages) ))
 
 #segment size being requested
 SHM_SIZE=$(($MAX_HUGEPAGES*$hugepagesize / nr_cpu))
@@ -21,7 +21,7 @@ SHM_SIZE=$(($MAX_HUGEPAGES*$hugepagesize / nr_cpu))
 echo $SHM_SIZE > /proc/sys/kernel/shmmax
 
 #check to see if the request can be satisfied else exit with error
-MAX_SHARE_SEGMENT=$(</proc/sys/kernel/shmmax)
+MAX_SHARE_SEGMENT=$(cat /proc/sys/kernel/shmmax)
 if [ $SHM_SIZE -gt $MAX_SHARE_SEGMENT ]
 then
         echo "Cannot allocate more shared memory segment than $MAX_SHARE_SEGMENT"

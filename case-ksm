@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # This case exercises the ksm functionality of the kernel
 
-source ./hw_vars
+. ./hw_vars
 
 # Trun on the ksm
 echo 1 > /sys/kernel/mm/ksm/run

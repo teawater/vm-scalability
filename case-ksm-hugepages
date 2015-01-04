@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
 # Turn on transparent hugepage support
 echo always > /sys/kernel/mm/transparent_hugepage/enabled

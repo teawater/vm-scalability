@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
 $USEMEM -n 20000 0

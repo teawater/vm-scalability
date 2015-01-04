@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises code in mincore.c mm/
 #
-source ./hw_vars
+. ./hw_vars
 
 #check for max shared memory allowed on system
-MAX_SHARE_SEGMENT=$(</proc/sys/kernel/shmmax)
+MAX_SHARE_SEGMENT=$(cat /proc/sys/kernel/shmmax)
 
 #segment size being requested
 SHM_SIZE=$((mem / nr_cpu))

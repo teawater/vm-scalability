@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
-(( PTE_LIMIT > AS_LIMIT )) && PTE_LIMIT=$AS_LIMIT
+[ "$PTE_LIMIT" -gt "$AS_LIMIT" ] && PTE_LIMIT=$AS_LIMIT
 
 $USEMEM -t $nr_cpu --readonly $((PTE_LIMIT / nr_cpu))

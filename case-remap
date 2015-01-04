@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises functions in fremap.c of mm/
 #
 #
-source ./hw_vars
+. ./hw_vars
 
 USEMEM_REMAP=./usemem_remap
 
@@ -20,7 +20,7 @@ wait
 
 now=$(date +%s%N)
 now=${now%???}
-(( usecs = now - start_time ))
+usecs=$(( now - start_time  ))
 
 throughput=$((mem / 2 / usecs))
 echo "$((mem / 2)) bytes remapped, $usecs usecs, $throughput MB/s"

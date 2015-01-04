@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises the SYS V IPC code of mm/
@@ -8,13 +8,13 @@
 # to calling process's VM and then unlocks and releases it.
 #
 
-source ./hw_vars
+. ./hw_vars
 
 #segment size being requested
 SHM_SIZE=$((shm_size / nr_cpu / 2))
 
 #check for max shared memory allowed on system
-MAX_SHARE_SEGMENT=$(</proc/sys/kernel/shmmax)
+MAX_SHARE_SEGMENT=$(cat /proc/sys/kernel/shmmax)
 
 echo "MAX SEGMENT is $MAX_SHARE_SEGMENT total asking is $((shm_size / 2))"
 

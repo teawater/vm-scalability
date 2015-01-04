@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
 size=$((PTE_LIMIT / nr_cpu))
-(( size > AS_LIMIT )) && size=$AS_LIMIT
+[ "$size" -gt "$AS_LIMIT" ] && size=$AS_LIMIT
 
 $USEMEM -n $nr_cpu --readonly $size

@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises functions in filemap.c of mm/
 #
 #
-source ./hw_vars
+. ./hw_vars
 
 USEMEM_DIRECT_WRITE=./usemem_direct_write
 

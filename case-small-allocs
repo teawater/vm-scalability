@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # flush memory and
 # create lots of small continuous VMAs
 
-source ./hw_vars
+. ./hw_vars
 
 $USEMEM -n $nr_cpu --readonly --unit $((10 * pagesize)) $((ROTATE_BYTES / nr_cpu))

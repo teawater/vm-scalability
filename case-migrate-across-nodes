@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # This case migrates pages across nodes
 
-source ./hw_vars
+. ./hw_vars
 
 USEMEM_MIGRATE=./usemem_migrate
 

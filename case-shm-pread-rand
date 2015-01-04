@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
 create_sparse_file $SHM_FILE $shm_size
 

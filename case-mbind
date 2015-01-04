@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-source ./hw_vars
+. ./hw_vars
 
 # usemem_mbind fails randomly. subsequent runs succeed. --have to fix that
 USEMEM_MBIND=./usemem_mbind

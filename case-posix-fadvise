@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises the functions in fadvise.c of mm/
@@ -7,7 +7,7 @@
 #
 #
 
-source ./hw_vars
+. ./hw_vars
 
 
 for i in `seq $nr_cpu`

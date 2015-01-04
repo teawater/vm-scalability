@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Exercises code in mremap.c of mm/
@@ -8,7 +8,7 @@
 # process. Then remaps it after scaling it by SCALE_FACTOR defined in usemem.
 #
 
-source ./hw_vars
+. ./hw_vars
 
 for i in `seq $nr_cpu`
 do

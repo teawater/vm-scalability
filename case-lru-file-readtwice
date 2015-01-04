@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # flush memory with use-twice page cache reads
 
@@ -13,7 +13,7 @@
 #   33637385	free_pcppages_bulk
 #   33650227	rmqueue_bulk
 
-source ./hw_vars
+. ./hw_vars
 
 for i in `seq 1 $nr_cpu`
 do
@@ -27,7 +27,7 @@ sleep 1
 
 for file in $TMPFS_MNT/dd-output-*
 do
-	[[ -s $file ]] || {
+	[ -s "$file" ] || {
 		echo "dd output file empty: $file" >&2
 	}
 	cat $file
