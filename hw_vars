@@ -1,23 +1,23 @@
-#!/bin/bash
+#!/bin/sh
 
-[[ $runtime ]] || runtime=300
+[ -n "$runtime" ] || runtime=300
 
 USEMEM="$CMD ./usemem --runtime $runtime"
 
 TMPFS_MNT=/tmp/vm-scalability-tmp
-SHM_FILE=$TMPFS_MNT/sparse-${0/*case-/}
+SHM_FILE=$TMPFS_MNT/sparse-${0#*case-}
 
 SPARSE_ROOT=/tmp/vm-scalability
-SPARSE_FILE=$SPARSE_ROOT/sparse-${0/*case-/}
+SPARSE_FILE=$SPARSE_ROOT/sparse-${0#*case-}
 # SPARSE_FSTYPE=$(/usr/bin/stat -fc %T $SPARSE_ROOT)
-# [[ $SPARSE_FSTYPE = tmpfs ]] && echo "$SPARSE_ROOT is tmpfs, sparse files won't eat memory." && exit 1
-# [[ $SPARSE_FSTYPE = nfs   ]] && echo "$SPARSE_ROOT is nfs, sparse file reads will be slow." && exit 1
+# [ $SPARSE_FSTYPE = tmpfs ] && echo "$SPARSE_ROOT is tmpfs, sparse files won't eat memory." && exit 1
+# [ $SPARSE_FSTYPE = nfs ] && echo "$SPARSE_ROOT is nfs, sparse file reads will be slow." && exit 1
 
-PIDFILE=$SPARSE_ROOT/${0/*case-/}.pid
+PIDFILE=$SPARSE_ROOT/${0#*case-}.pid
 
 mount_tmpfs()
 {
-	if [[ -d $TMPFS_MNT ]]; then
+	if [ -d "$TMPFS_MNT" ]; then
 		mountpoint -q $TMPFS_MNT && umount $TMPFS_MNT
 	else
 		mkdir $TMPFS_MNT
@@ -32,11 +32,11 @@ create_loop_devices()
 {
 	local i
 
-	[[ -e /dev/loop0 ]] || modprobe loop 2>/dev/null
+	[ -e "/dev/loop0" ] || modprobe loop 2>/dev/null
 
-	for i in {0..8}
+	for i in $(seq 0 8)
 	do
-		[[ -e /dev/loop$i ]] && continue
+		[ -e "/dev/loop$i" ] && continue
 		mknod /dev/loop$i b 7 $i
 	done
 }
@@ -55,7 +55,7 @@ create_sparse_root () {
 			$CMD mkfs.xfs -q $SPARSE_ROOT.img
 			;;
 	esac
-	[[ -d $SPARSE_ROOT ]] || mkdir $SPARSE_ROOT
+	[ -d "$SPARSE_ROOT" ] || mkdir $SPARSE_ROOT
 
 	# check if already mounted
 	if mountpoint -q $SPARSE_ROOT; then
@@ -64,7 +64,7 @@ create_sparse_root () {
 		create_loop_devices
 		$CMD mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT 2>/dev/null || {
 			local loop_dev=$(losetup -f --show $SPARSE_ROOT.img)
-			[[ $loop_dev ]] || exit
+			[ -n "$loop_dev" ] || exit
 			mount $loop_dev $SPARSE_ROOT
 		}
 	fi
@@ -101,7 +101,7 @@ nr_cpu=$(grep -c processor /proc/cpuinfo)
 nr_node=$(echo /sys/devices/system/node/node* | wc -w)
 
 while read key val; do
-	[[ $key && $val =~ [0-9]+ ]] || {
+	[ -n "$key" -a -n ${val} -a "${val##*[0-9]}" = '' -a "${val%%[0-9]*}" = '' ] || {
 		echo "invalid vmstat line: $key $val"
 		break
 	}
@@ -114,7 +114,7 @@ reclaimable=$((reclaimable * pagesize))
 while read key val unit; do
 	key=${key%%:}
 	key=${key%%)}
-	key=${key/\(/_}
+	key=${key%(*}_${key#*(}
 	eval $key=$val
 done < /proc/meminfo
 
