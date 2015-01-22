@@ -11,4 +11,4 @@
 
 . ./hw_vars
 
-$USEMEM -n $nr_cpu --mlock $((reclaimable / nr_cpu / 3))
+$USEMEM -n $nr_task --mlock $((reclaimable / nr_task / 3))

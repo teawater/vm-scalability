@@ -100,6 +100,8 @@ pagesize=$(getconf PAGESIZE)
 nr_cpu=$(grep -c processor /proc/cpuinfo)
 nr_node=$(echo /sys/devices/system/node/node* | wc -w)
 
+nr_task=${nr_task:-$nr_cpu}
+
 while read key val; do
 	[ -n "${val}" ] || continue
 	[ -z "${val##*[0-9]}" -a -z "${val%%[0-9]*}" ] || {

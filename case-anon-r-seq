@@ -2,7 +2,7 @@
 
 . ./hw_vars
 
-size=$((PTE_LIMIT / nr_cpu))
+size=$((PTE_LIMIT / nr_task))
 [ "$size" -gt "$AS_LIMIT" ] && size=$AS_LIMIT
 
-$USEMEM -n $nr_cpu --readonly $size
+$USEMEM -n $nr_task --readonly $size

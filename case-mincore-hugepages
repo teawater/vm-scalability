@@ -15,7 +15,7 @@ echo $((mem/Hugepagesize/1024 / 10)) > /proc/sys/vm/nr_overcommit_hugepages
 MAX_HUGEPAGES=$(( $(cat /proc/sys/vm/nr_hugepages) + $(cat /proc/sys/vm/nr_overcommit_hugepages) ))
 
 #segment size being requested
-SHM_SIZE=$(($MAX_HUGEPAGES*$hugepagesize / nr_cpu))
+SHM_SIZE=$(($MAX_HUGEPAGES*$hugepagesize / nr_task))
 
 #set shmmax to accommodate the request
 echo $SHM_SIZE > /proc/sys/kernel/shmmax
@@ -31,7 +31,7 @@ fi
 
 create_sparse_file $SPARSE_FILE $SHM_SIZE
 
-$USEMEM -t $nr_cpu -f $SPARSE_FILE -H --prealloc --readonly --random $SHM_SIZE
+$USEMEM -t $nr_task -f $SPARSE_FILE -H --prealloc --readonly --random $SHM_SIZE
 
 echo always > /sys/kernel/mm/transparent_hugepage/enabled
 

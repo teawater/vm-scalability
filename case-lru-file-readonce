@@ -8,9 +8,9 @@
 
 . ./hw_vars
 
-for i in `seq 1 $nr_cpu`
+for i in `seq 1 $nr_task`
 do
-	create_sparse_file $SPARSE_FILE-$i $((ROTATE_BYTES / nr_cpu))
+	create_sparse_file $SPARSE_FILE-$i $((ROTATE_BYTES / nr_task))
 	timeout --foreground -s INT ${runtime:-600} dd bs=4k if=$SPARSE_FILE-$i of=/dev/null > $TMPFS_MNT/dd-output-$i 2>&1 &
 done
 
@@ -26,4 +26,4 @@ do
 	rm  $file
 done
 
-rm `seq -f $SPARSE_FILE-%g 1 $nr_cpu`
+rm `seq -f $SPARSE_FILE-%g 1 $nr_task`

@@ -1,19 +1,19 @@
 #!/bin/sh
 
-# step 1)  fill $mem with $nr_cpu files
+# step 1)  fill $mem with $nr_task files
 # step 2)  truncate the files concurrently
 
 . ./hw_vars
 
-for i in `seq $nr_cpu`
+for i in `seq $nr_task`
 do
-	create_sparse_file $SPARSE_FILE-$i $((mem / nr_cpu))
+	create_sparse_file $SPARSE_FILE-$i $((mem / nr_task))
 	cp $SPARSE_FILE-$i /dev/null
 done
 
 t0=$(date +%s.%N)
 
-for i in `seq $nr_cpu`
+for i in `seq $nr_task`
 do
 	rm $SPARSE_FILE-$i &
 done

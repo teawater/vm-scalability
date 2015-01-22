@@ -9,7 +9,7 @@
 MAX_SHARE_SEGMENT=$(cat /proc/sys/kernel/shmmax)
 
 #segment size being requested
-SHM_SIZE=$((mem / nr_cpu))
+SHM_SIZE=$((mem / nr_task))
 #echo "shared segment size being requested $SHM_SIZE"
 
 #echo "Max shared segment allocatable is set to $MAX_SHARE_SEGMENT"
@@ -22,10 +22,10 @@ then
         exit 1 #exit on failure
 fi
 
-for i in `seq nr_cpu`
+for i in `seq nr_task`
 do
 	create_sparse_file $SPARSE_FILE-$i $SHM_SIZE
-	$USEMEM -t $nr_cpu -f $SPARSE_FILE -N --prealloc --readonly --random $SHM_SIZE &
+	$USEMEM -t $nr_task -f $SPARSE_FILE -N --prealloc --readonly --random $SHM_SIZE &
 done
 wait
 

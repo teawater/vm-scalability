@@ -2,10 +2,10 @@
 
 . ./hw_vars
 
-SIZE=$((mem / nr_cpu / 2))
+SIZE=$((mem / nr_task / 2))
 
 create_sparse_file $SPARSE_FILE $mem
 
-$USEMEM -S -t $nr_cpu -f $SPARSE_FILE -F --prealloc --open-rw  $SIZE
+$USEMEM -S -t $nr_task -f $SPARSE_FILE -F --prealloc --open-rw  $SIZE
 
 rm $SPARSE_FILE

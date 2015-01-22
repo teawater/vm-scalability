@@ -11,7 +11,7 @@
 . ./hw_vars
 
 #segment size being requested
-SHM_SIZE=$((shm_size / nr_cpu / 2))
+SHM_SIZE=$((shm_size / nr_task / 2))
 
 #check for max shared memory allowed on system
 MAX_SHARE_SEGMENT=$(cat /proc/sys/kernel/shmmax)
@@ -26,4 +26,4 @@ then
 	exit 1 #exit on failure
 fi
 
-$USEMEM -n $nr_cpu -L --random $SHM_SIZE
+$USEMEM -n $nr_task -L --random $SHM_SIZE

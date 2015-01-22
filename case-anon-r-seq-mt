@@ -4,4 +4,4 @@
 
 [ "$PTE_LIMIT" -gt "$AS_LIMIT" ] && PTE_LIMIT=$AS_LIMIT
 
-$USEMEM -t $nr_cpu --readonly $((PTE_LIMIT / nr_cpu))
+$USEMEM -t $nr_task --readonly $((PTE_LIMIT / nr_task))

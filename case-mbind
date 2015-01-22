@@ -6,10 +6,10 @@
 USEMEM_MBIND=./usemem_mbind
 
 # Allocate pages to scale with available free memory
-PAGES=$((MemFree / nr_cpu / 20))
+PAGES=$((MemFree / nr_task / 20))
 
 # run it for each cpu in system
-for i in $(seq $nr_cpu)
+for i in $(seq $nr_task)
 do
 $USEMEM_MBIND  $PAGES &
 done

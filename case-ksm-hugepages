@@ -16,9 +16,9 @@ echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
 USEMEM_KSM_HUGEPAGES=./usemem_ksm_hugepages
 
 # run as many instances as there are number of cpus
-for i in `seq $nr_cpu`
+for i in `seq $nr_task`
 do
-$USEMEM_KSM_HUGEPAGES $((mem / nr_cpu / 2)) &
+$USEMEM_KSM_HUGEPAGES $((mem / nr_task / 2)) &
 done
 wait
 

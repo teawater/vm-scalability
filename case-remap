@@ -11,10 +11,10 @@ USEMEM_REMAP=./usemem_remap
 start_time=$(date +%s%N)
 start_time=${start_time%???}
 
-for i in $(seq $nr_cpu)
+for i in $(seq $nr_task)
 do
-	create_sparse_file $SPARSE_FILE-$i $((mem / nr_cpu / 2))
-	$USEMEM_REMAP  $SPARSE_FILE-$i $((mem / nr_cpu / 2)) &
+	create_sparse_file $SPARSE_FILE-$i $((mem / nr_task / 2))
+	$USEMEM_REMAP  $SPARSE_FILE-$i $((mem / nr_task / 2)) &
 done
 wait
 

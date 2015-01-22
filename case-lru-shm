@@ -12,12 +12,12 @@
 
 . ./hw_vars
 
-for i in `seq 1 $nr_cpu`
+for i in `seq 1 $nr_task`
 do
 	create_sparse_file $SHM_FILE-$i $shm_size
-	$USEMEM -f $SHM_FILE-$i --readonly $((shm_size / nr_cpu / 2)) &
+	$USEMEM -f $SHM_FILE-$i --readonly $((shm_size / nr_task / 2)) &
 done
 
 wait
 
-rm `seq -f $SHM_FILE-%g 1 $nr_cpu`
+rm `seq -f $SHM_FILE-%g 1 $nr_task`
