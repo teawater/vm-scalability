@@ -7,7 +7,7 @@ USEMEM="$CMD ./usemem --runtime $runtime"
 TMPFS_MNT=/tmp/vm-scalability-tmp
 SHM_FILE=$TMPFS_MNT/sparse-${0#*case-}
 
-SPARSE_ROOT=/tmp/vm-scalability
+SPARSE_ROOT=$TMPFS_MNT/vm-scalability
 SPARSE_FILE=$SPARSE_ROOT/sparse-${0#*case-}
 # SPARSE_FSTYPE=$(/usr/bin/stat -fc %T $SPARSE_ROOT)
 # [ $SPARSE_FSTYPE = tmpfs ] && echo "$SPARSE_ROOT is tmpfs, sparse files won't eat memory." && exit 1
