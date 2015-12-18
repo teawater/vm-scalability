@@ -1,5 +1,6 @@
 /*
  * perform page migration across nodes .
+ * Part of the code is from numactl's test code migrate_pages.c.
  */
 #include <numaif.h>
 #include <stdio.h>
