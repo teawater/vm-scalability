@@ -27,3 +27,9 @@ $(hostname)-*/elapsed-time will be auto updated by ./run.
 $(hostname)-*/{mm,top-locks,top-functions} can be manually updated
 by running ./gcov-sum-all.
 
+License: GNU General Public License v2, see COPYING for detailed
+information.
+Copyright: Except usemem.c and usemem_migrate.c, all others files are:
+Copyright (C) 2010-2015 Intel Corporation
+Copyright for usemem.c and usemem_migrate.c are listed in each file's
+comment header.

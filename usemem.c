@@ -4,6 +4,9 @@
  * Usage: usemem size[k|m|g|t]
  *
  * gcc -lpthread -O -g -Wall  usemem.c -o usemem
+ *
+ * Copyright (C) Andrew Morton <akpm@linux-foundation.org>
+ * Copyright (C) 2010-2015 Intel Corporation.
  */
 #define _GNU_SOURCE
 #include <stdio.h>

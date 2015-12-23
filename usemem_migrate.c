@@ -1,6 +1,9 @@
 /*
  * perform page migration across nodes .
  * Part of the code is from numactl's test code migrate_pages.c.
+ * Copyright (C) 2006 Silicon Graphics, Inc.
+ *		Christoph Lameter <clameter@sgi.com>
+ * Copyright (C) 2010-2015 Intel Corporation
  */
 #include <numaif.h>
 #include <stdio.h>
