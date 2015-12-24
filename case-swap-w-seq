@@ -1,0 +1,19 @@
+#!/bin/sh
+
+. ./hw_vars
+
+if [ "$SwapTotal" -eq 0 ]; then
+	echo "No swap space. Please setup swap before running $0" >&2
+	exit 1
+fi
+
+pass_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
+
+testcase=$(basename $0)
+if [ "${testcase%-mt}" != "$testcase" ]; then
+	multi_task_option="-t"
+else
+	multi_task_option="-n"
+fi
+nr_task=${nr_task:-nr_cpu}
+$USEMEM $multi_task_option $nr_task $((pass_size / nr_task))
