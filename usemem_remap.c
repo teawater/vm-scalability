@@ -52,7 +52,7 @@ int main (int argc, char *argv[])
 	end = (unsigned char *) (start + (no_of_pages - 1) * pagesize);
 
 	/* make mapping non-contiguous (reverse the page mapping order) */
-	for (i = 0; i < no_of_pages / 2; i++) {
+	for (i = 0; i < no_of_pages; i++) {
 		if (remap_file_pages(end - (i * pagesize),
 				     pagesize, 0, i, MAP_SHARED|MAP_POPULATE) == -1) {
 			fprintf(stderr, "remap failed with error %s\n", strerror(errno));
