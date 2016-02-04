@@ -34,7 +34,7 @@ int main (int argc, char *argv[])
 	}
 
 	size = atol(argv[2]);
-	no_of_pages = size / pagesize;
+	no_of_pages = (size + pagesize - 1) / pagesize;
 
 	if ((fd = open(argv[1], O_RDWR | O_CREAT, 0666)) == -1) {
 		fprintf(stderr, "error opening file\n");
@@ -49,7 +49,7 @@ int main (int argc, char *argv[])
 		exit(1);
 	}
 
-	end = (unsigned char *) (start + size);
+	end = (unsigned char *) (start + (no_of_pages - 1) * pagesize);
 
 	/* make mapping non-contiguous (reverse the page mapping order) */
 	for (i = 0; i < no_of_pages / 2; i++) {
