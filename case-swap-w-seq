@@ -7,7 +7,7 @@ if [ "$SwapTotal" -eq 0 ]; then
 	exit 1
 fi
 
-pass_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
+[ -n "$pass_size" ] || pass_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
 
 testcase=$(basename $0)
 if [ "${testcase%-mt}" != "$testcase" ]; then
