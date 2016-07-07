@@ -2,4 +2,4 @@
 
 . ./hw_vars
 
-$USEMEM -t $nr_task --prealloc $((mem / nr_task / 2))
+$USEMEM -t $nr_task --prealloc $((mem / 2))
