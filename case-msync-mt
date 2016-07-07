@@ -2,7 +2,7 @@
 
 . ./hw_vars
 
-SIZE=$((mem / nr_task / 2))
+SIZE=$((mem / 2))
 
 create_sparse_file $SPARSE_FILE $mem
 
