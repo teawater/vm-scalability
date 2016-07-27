@@ -1,8 +1,10 @@
 #!/bin/sh
 
-[ -n "$runtime" ] || runtime=300
-
-USEMEM="$CMD ./usemem --runtime $runtime"
+if [ -n "$runtime" ]; then
+	USEMEM="$CMD ./usemem --runtime $runtime"
+else
+	USEMEM="$CMD ./usemem"
+fi
 
 TMPFS_MNT=/tmp/vm-scalability-tmp
 SHM_FILE=$TMPFS_MNT/sparse-${0#*case-}
