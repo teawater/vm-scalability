@@ -2,7 +2,4 @@
 
 . ./hw_vars
 
-# prevent OOM: limit pagetable pages to half memory
-[ "$ROTATE_BYTES" -gt $(( mem << 8 )) ] && ROTATE_BYTES=$(( mem << 8 ))
-
 $USEMEM -t $nr_task --readonly --random $((ROTATE_BYTES / nr_task))

@@ -134,6 +134,8 @@ mem=$((MemTotal << 10))
 hugepagesize=$((Hugepagesize << 10))
 
 ROTATE_BYTES=$((1<<42))
+# prevent OOM: limit pagetable pages to half memory
+[ "$ROTATE_BYTES" -gt $(( mem << 8 )) ] && ROTATE_BYTES=$(( mem << 8 ))
 
 # Documentation/x86/x86_64/mm.txt
 # 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
