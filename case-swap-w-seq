@@ -7,7 +7,7 @@ if [ "$SwapTotal" -eq 0 ]; then
 	exit 1
 fi
 
-[ -n "$pass_size" ] || pass_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
+[ -n "$unit_size" ] || unit_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
 
 testcase=$(basename $0)
 if [ "${testcase%-mt}" != "$testcase" ]; then
@@ -22,5 +22,4 @@ else
 	rand_seq_option=""
 fi
 
-nr_task=${nr_task:-nr_cpu}
-$USEMEM $multi_task_option $nr_task $rand_seq_option $((pass_size / nr_task))
+$USEMEM $multi_task_option $nr_task $rand_seq_option $((unit_size / nr_task))
