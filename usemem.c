@@ -413,10 +413,50 @@ void shm_unlock(int seg_id)
 	shmctl(seg_id, SHM_UNLOCK, NULL);
 }
 
+static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
+				struct drand48_data *rand_data, int read,
+				int *rep, int reps)
+{
+	unsigned long i;
+	unsigned long m = bytes / sizeof(*p);
+	unsigned long rw_bytes = 0;
+
+	for (i = 0; i < m; i += step / sizeof(*p)) {
+		volatile long d;
+		unsigned long idx = i;
+
+		if (opt_randomise)
+			idx = os_random_long(m - 1, rand_data);
+
+		/* verify last write */
+		if (rep && *rep && !read && !opt_randomise && p[idx] != idx) {
+			fprintf(stderr, "Data wrong at offset 0x%lx. "
+					"Expected 0x%08lx, got 0x%08lx\n",
+					idx * sizeof(*p), idx, p[idx]);
+			exit(1);
+		}
+
+		/* read / write */
+		if (read)
+			d = p[idx];	/* read data into d */
+		else
+			p[idx] = idx;	/* write data into p[idx] */
+
+		rw_bytes += sizeof(*p);
+
+		if (!(i & 0xffff) && runtime_exceeded()) {
+			if (rep)
+				*rep = reps;
+			break;
+		}
+	}
+
+	return rw_bytes;
+}
+
 unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 {
 	unsigned long rw_bytes;
-	unsigned long i;
 	unsigned long *p;
 	int rep;
 	int c;
@@ -430,42 +470,12 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 	}
 
 	for (rep = 0; rep < reps; rep++) {
-		unsigned long m = bytes / sizeof(*p);
-
 		if (rep > 0 && !quiet) {
 			printf(".");
 			fflush(stdout);
 		}
 
-		for (i = 0; i < m; i += step / sizeof(*p)) {
-			volatile long d;
-			unsigned long idx = i;
-
-			if (opt_randomise)
-				idx = os_random_long(m - 1, rand_data);
-
-			/* verify last write */
-			if (rep && !opt_readonly && !opt_randomise &&
-			    p[idx] != idx) {
-				fprintf(stderr, "Data wrong at offset 0x%lx. "
-					"Expected 0x%08lx, got 0x%08lx\n",
-					idx * sizeof(*p), idx, p[idx]);
-				exit(1);
-			}
-
-			/* read / write */
-			if (opt_readonly)
-				d = p[idx];	/* read data into d */
-			else
-				p[idx] = idx;	/* write data into p[idx] */
-
-			rw_bytes += sizeof(*p);
-
-			if (!(i & 0xffff) && runtime_exceeded()) {
-				rep = reps;
-				break;
-			}
-		}
+		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep, reps);
 
 		if (msync_mode) {
 			if ((msync(p, bytes, msync_mode)) == -1) {
