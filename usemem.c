@@ -50,7 +50,7 @@
 char *ourname;
 int pagesize;
 unsigned long done_bytes = 0;
-unsigned long bytes = 0;
+unsigned long opt_bytes = 0;
 unsigned long unit = 0;
 unsigned long step = 0;
 unsigned long *prealloc;
@@ -591,10 +591,10 @@ int do_task(void)
 	int i;
 
 	if (!nr_thread)
-		return do_units(bytes);
+		return do_units(opt_bytes);
 
 	for (i = 0; i < nr_thread; i++) {
-		ret = pthread_create(&threads[i], NULL, (start_routine)do_units, (void *)bytes);
+		ret = pthread_create(&threads[i], NULL, (start_routine)do_units, (void *)opt_bytes);
 		if (ret) {
 			perror("pthread_create");
 			exit(1);
@@ -679,8 +679,8 @@ int main(int argc, char *argv[])
 			do_getchar = 1;
 			break;
 		case 'm': /* kept for compatibility */
-			bytes = strtol(optarg, NULL, 10);
-			bytes <<= 20;
+			opt_bytes = strtol(optarg, NULL, 10);
+			opt_bytes <<= 20;
 			break;
 		case 'n':
 			nr_task = strtol(optarg, NULL, 10);
@@ -766,7 +766,7 @@ int main(int argc, char *argv[])
 
 	gettimeofday(&start_time, NULL);
 
-	bytes = memparse(argv[optind], NULL);
+	opt_bytes = memparse(argv[optind], NULL);
 
 	if (!opt_malloc)
 		fd = open(filename, ((opt_readonly && !opt_openrw) ?
@@ -778,18 +778,18 @@ int main(int argc, char *argv[])
 	}
 
 	if (prealloc) {
-		prealloc = allocate(bytes);
-		done_bytes = bytes / 8;
+		prealloc = allocate(opt_bytes);
+		done_bytes = opt_bytes / 8;
 	}
 
 	if (opt_remap) {
-		prealloc = mremap(prealloc, bytes, SCALE_FACTOR * bytes, MREMAP_MAYMOVE);
-		done_bytes += bytes / 8;
+		prealloc = mremap(prealloc, opt_bytes, SCALE_FACTOR * opt_bytes, MREMAP_MAYMOVE);
+		done_bytes += opt_bytes / 8;
 	}
 
-	/* Allocate a shared sysV IPC shared object of size "bytes" */
+	/* Allocate a shared sysV IPC shared object of size "opt_bytes" */
 	if (opt_shm) {
-		shm_allocate_and_lock(bytes);
+		shm_allocate_and_lock(opt_bytes);
 
 		/* Unlocking memory now */
 		shm_unlock(seg_id);
@@ -797,7 +797,7 @@ int main(int argc, char *argv[])
 		/* mark for destruction */
 		shm_free(seg_id);
 
-		done_bytes += bytes / 8;
+		done_bytes += opt_bytes / 8;
 	}
 
 	/* Advise file access pattern */
@@ -825,12 +825,12 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		done_bytes += bytes;
+		done_bytes += opt_bytes;
 		close(fd);
 	}
 
 	if (opt_mincore) {
-		unsigned long length_of_vector = ((bytes/getpagesize()) + 1);
+		unsigned long length_of_vector = ((opt_bytes/getpagesize()) + 1);
 		unsigned char *ptr = NULL; /* initialize to NULL */
 
 		if ((ptr = (unsigned char *)malloc((sizeof(char)) * length_of_vector)) == NULL) {
@@ -839,13 +839,13 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		if ((mincore(prealloc, bytes, ptr)) == -1) {
+		if ((mincore(prealloc, opt_bytes, ptr)) == -1) {
 			fprintf(stderr, "mincore failed with error: %s", strerror(errno));
 			free(ptr);
 			exit(1);
 		}
 
-		done_bytes += bytes / 8;
+		done_bytes += opt_bytes / 8;
 
 		free(ptr);
 		return 0;
@@ -856,21 +856,21 @@ int main(int argc, char *argv[])
 		int number_of_pages;
 
 		unsigned char *ptr;
-		unsigned char *p = (unsigned char *)allocate_hugepage_segment(bytes);
+		unsigned char *p = (unsigned char *)allocate_hugepage_segment(opt_bytes);
 		unsigned long pagesize = HUGE_PAGE_SIZE;
 
 		char modify_nr_hugepages[50];
 
 		/* error checking done inside the mincore_hugepages function */
-		ptr = mincore_hugepages(p, bytes);
+		ptr = mincore_hugepages(p, opt_bytes);
 
 		/* change protection of the hugepage segment */
-		if (mprotect(p, bytes, PROT_WRITE) == -1) {
+		if (mprotect(p, opt_bytes, PROT_WRITE) == -1) {
 			fprintf(stderr, "mprotect error: %s", strerror(errno));
 			exit(1);
 		}
 
-		number_of_pages = bytes/pagesize;
+		number_of_pages = opt_bytes/pagesize;
 
 		/* copy on write for allocating child address space */
 		for (i = 0; i < number_of_pages; i++)
@@ -883,7 +883,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		done_bytes += bytes / 8;
+		done_bytes += opt_bytes / 8;
 
 		/* free the shm segment */
 		shm_free(seg_id);
