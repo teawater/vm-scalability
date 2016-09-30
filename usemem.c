@@ -538,11 +538,28 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 	return rw_bytes;
 }
 
+static void output_statistics(unsigned long unit_bytes)
+{
+	struct timeval stop;
+	char buf[1024];
+	size_t len;
+	unsigned long delta_us;
+	unsigned long throughput;
+
+	gettimeofday(&stop, NULL);
+	delta_us = (stop.tv_sec - start_time.tv_sec) * 1000000 +
+		(stop.tv_usec - start_time.tv_usec);
+	throughput = ((unit_bytes * 1000000ULL) >> 10) / delta_us;
+	len = snprintf(buf, sizeof(buf),
+			"%lu bytes / %lu usecs = %lu KB/s\n",
+			unit_bytes, delta_us, throughput);
+	fflush(stdout);
+	write(1, buf, len);
+}
+
 long do_units(void)
 {
 	struct drand48_data rand_data;
-	unsigned long delta_us;
-	unsigned long throughput;
 	unsigned long unit_bytes = done_bytes;
 	unsigned long bytes = opt_bytes;
 
@@ -567,21 +584,8 @@ long do_units(void)
 			break;
 	} while (bytes);
 
-	if (unit_bytes) {
-		struct timeval stop;
-		char buf[1024];
-		size_t len;
-
-		gettimeofday(&stop, NULL);
-		delta_us = (stop.tv_sec - start_time.tv_sec) * 1000000 +
-			   (stop.tv_usec - start_time.tv_usec);
-		throughput = ((unit_bytes * 1000000ULL) >> 10) / delta_us;
-		len = snprintf(buf, sizeof(buf),
-			       "%lu bytes / %lu usecs = %lu KB/s\n",
-			       unit_bytes, delta_us, throughput);
-		fflush(stdout);
-		write(1, buf, len);
-	}
+	if (unit_bytes)
+		output_statistics(unit_bytes);
 
 	if (opt_detach && up(sem_id))
 		perror("up");
