@@ -528,12 +528,13 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 	return rw_bytes;
 }
 
-long do_units(unsigned long bytes)
+long do_units(void)
 {
 	struct drand48_data rand_data;
 	unsigned long delta_us;
 	unsigned long throughput;
 	unsigned long unit_bytes = done_bytes;
+	unsigned long bytes = opt_bytes;
 
 	if (opt_detach)
 		detach();
@@ -591,10 +592,10 @@ int do_task(void)
 	int i;
 
 	if (!nr_thread)
-		return do_units(opt_bytes);
+		return do_units();
 
 	for (i = 0; i < nr_thread; i++) {
-		ret = pthread_create(&threads[i], NULL, (start_routine)do_units, (void *)opt_bytes);
+		ret = pthread_create(&threads[i], NULL, (start_routine)do_units, NULL);
 		if (ret) {
 			perror("pthread_create");
 			exit(1);
