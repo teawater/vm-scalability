@@ -54,6 +54,7 @@ unsigned long opt_bytes = 0;
 unsigned long unit = 0;
 unsigned long step = 0;
 unsigned long *prealloc;
+unsigned long *buffer;
 int sleep_secs = 0;
 time_t runtime_secs = 0;
 struct timeval start_time;
@@ -70,6 +71,7 @@ int opt_shm = 0;
 int opt_remap = 0;
 int opt_mincore = 0;
 int opt_mincore_hugepages = 0;
+int opt_write_signal_read = 0;
 int sem_id = -1;
 int nr_task;
 int nr_thread;
@@ -112,6 +114,7 @@ void usage(int ok)
 	"    -E|--remap          remap file virtual memory\n"
 	"    -N|--mincore        get information about pages in memory\n"
 	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
+	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -252,7 +255,7 @@ void update_pid_file(pid_t pid)
 	if (!pid_filename)
 		return;
 
-	file = fopen(pid_filename, "w");
+	file = fopen(pid_filename, "a");
 	if (!file) {
 		perror(pid_filename);
 		exit(1);
@@ -352,7 +355,7 @@ int runtime_exceeded(void)
 {
 	struct timeval now;
 
-	if (!runtime_secs)
+	if (!runtime_secs || start_time.tv_sec == 0)
 		return 0;
 
 	gettimeofday(&now, NULL);
@@ -469,6 +472,9 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 		rw_bytes = bytes / 8;
 	}
 
+	if (opt_write_signal_read)
+		buffer = p;
+
 	for (rep = 0; rep < reps; rep++) {
 		if (rep > 0 && !quiet) {
 			printf(".");
@@ -557,6 +563,8 @@ static void output_statistics(unsigned long unit_bytes)
 	write(1, buf, len);
 }
 
+static void wait_for_sigusr1(int signal) {}
+
 long do_units(void)
 {
 	struct drand48_data rand_data;
@@ -584,14 +592,34 @@ long do_units(void)
 			break;
 	} while (bytes);
 
-	if (unit_bytes)
+	if (!opt_write_signal_read && unit_bytes)
 		output_statistics(unit_bytes);
+
+	if (opt_write_signal_read) {
+		struct sigaction act;
+		memset(&act, 0, sizeof(act));
+		act.sa_handler = wait_for_sigusr1;
+		if (sigaction(SIGUSR1, &act, NULL) == -1) {
+			perror("sigaction");
+			exit(-1);
+		}
+	}
 
 	if (opt_detach && up(sem_id))
 		perror("up");
 
 	if (sleep_secs)
 		sleep(sleep_secs);
+
+	if (opt_write_signal_read) {
+		sigset_t set;
+		sigfillset(&set);
+		sigdelset(&set, SIGUSR1);
+		sigsuspend(&set);
+		gettimeofday(&start_time, NULL);
+		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0);
+		output_statistics(unit_bytes);
+	}
 
 	return 0;
 }
@@ -668,7 +696,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:EHDNLh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:EHDNLWh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -762,6 +790,10 @@ int main(int argc, char *argv[])
 			opt_mincore_hugepages = 1;
 			break;
 
+		case 'W':
+			opt_write_signal_read = 1;
+			break;
+
 		default:
 			usage(1);
 		}
@@ -773,13 +805,8 @@ int main(int argc, char *argv[])
 	if (optind != argc - 1)
 		usage(0);
 
-	if (pid_filename && nr_task) {
-		fprintf(stderr, "%s: pid file is only for single process\n",
-			ourname);
-		exit(1);
-	}
-
-	gettimeofday(&start_time, NULL);
+	if (!opt_write_signal_read)
+		gettimeofday(&start_time, NULL);
 
 	opt_bytes = memparse(argv[optind], NULL);
 
