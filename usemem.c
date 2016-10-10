@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/shm.h>
+#include <sys/syscall.h>
 #include "usemem_mincore.h"
 #include "usemem_hugepages.h"
 
@@ -574,8 +575,9 @@ long do_units(void)
 	if (opt_detach)
 		detach();
 
+	/* Base the random seed on the thread ID for multithreaded tests */
 	if (opt_randomise)
-		os_random_seed(time(0) ^ getpid(), &rand_data);
+		os_random_seed(time(0) ^ syscall(SYS_gettid), &rand_data);
 
 	if (!unit)
 		unit = bytes;
