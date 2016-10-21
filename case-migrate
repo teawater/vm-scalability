@@ -17,12 +17,12 @@ start_time=${start_time%???}
 count=0
 while :
 do
-	for i in `seq $((nr_node-1))`
+	for i in `seq $nr_node`
 	do
-		migratepages $pid $((i-1)) $i
+		migratepages $pid $((i-1)) $(($i%$nr_node))
 		now=$(date +%s%N)
 		now=${now%???}
-		[ -n "$count++" -a "$count++" != 0 ]
+		count=$((count+1))
 		usecs=$(( now - start_time  ))
 		[ "$usecs" -gt ${runtime}000000  ] && break 2
 	done
