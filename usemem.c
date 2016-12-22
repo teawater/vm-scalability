@@ -27,6 +27,7 @@
 #include <sys/shm.h>
 #include <sys/syscall.h>
 #include <poll.h>
+#include <sched.h>
 #include "usemem_mincore.h"
 #include "usemem_hugepages.h"
 
@@ -75,9 +76,11 @@ int opt_mincore = 0;
 int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
 int opt_sync_rw = 0;
+int opt_bind_interval = 0;
 int sem_id = -1;
 int nr_task;
 int nr_thread;
+int nr_cpu;
 int quiet = 0;
 int msync_mode;
 char *filename = "/dev/zero";
@@ -95,6 +98,7 @@ void usage(int ok)
 	"Usage: %s [options] size[k|m|g|t]\n"
 	"    -n|--nproc N        do job in N processes\n"
 	"    -t|--thread M       do job in M threads\n"
+	"    -b|--bind N         bind tasks with CPU number internal as N\n"
 	"    -a|--malloc         obtain memory from malloc()\n"
 	"    -f|--file FILE      mmap FILE, default /dev/zero\n"
 	"    -F|--prefault       prefault mmap with MAP_POPULATE\n"
@@ -140,6 +144,7 @@ static const struct option opts[] = {
 	{ "msync-async"	, 0, NULL, 'A' },
 	{ "nproc"	, 1, NULL, 'n' },
 	{ "thread"	, 1, NULL, 't' },
+	{ "bind"	, 1, NULL, 'b' },
 	{ "prealloc"	, 0, NULL, 'P' },
 	{ "prefault"	, 0, NULL, 'F' },
 	{ "repeat"	, 1, NULL, 'r' },
@@ -660,15 +665,36 @@ long do_units(void)
 
 typedef void * (*start_routine)(void *);
 
-int do_task(void)
+static inline int bind_cpu(int task_nr)
+{
+	return task_nr * opt_bind_interval % nr_cpu;
+}
+
+int do_task(int task_nr)
 {
 	pthread_t threads[nr_thread];
 	long thread_ret;
 	int ret;
 	int i;
+	cpu_set_t *mask;
+	size_t size;
 
-	if (!nr_thread)
+	size = CPU_ALLOC_SIZE(nr_cpu);
+	mask = CPU_ALLOC(nr_cpu);
+	if (mask == NULL) {
+		perror("CPU_ALLOC");
+		exit(1);
+	}
+
+	if (!nr_thread) {
+		if (opt_bind_interval) {
+			CPU_ZERO_S(size, mask);
+			CPU_SET_S(bind_cpu(task_nr), size, mask);
+			sched_setaffinity(getpid(), size, mask);
+			CPU_FREE(mask);
+		}
 		return do_units();
+	}
 
 	for (i = 0; i < nr_thread; i++) {
 		ret = pthread_create(&threads[i], NULL, (start_routine)do_units, NULL);
@@ -676,7 +702,19 @@ int do_task(void)
 			perror("pthread_create");
 			exit(1);
 		}
+		if (opt_bind_interval) {
+			CPU_ZERO_S(size, mask);
+			CPU_SET_S(bind_cpu(task_nr * nr_thread + i), size, mask);
+			ret = pthread_setaffinity_np(threads[i], size, mask);
+			if (ret) {
+				perror("pthread_setaffinity_np");
+				exit(1);
+			}
+		}
 	}
+
+	CPU_FREE(mask);
+
 	for (i = 0; i < nr_thread; i++) {
 		ret = pthread_join(threads[i], (void *)&thread_ret);
 		if (ret) {
@@ -696,9 +734,11 @@ int do_tasks(void)
 	char dummy;
 
 	for (i = 0; i < nr_task; i++) {
-		if ((child_pid = fork()) == 0) {
-			return do_task();
-		}
+		if ((child_pid = fork()) == 0)
+			return do_task(i);
+		else if (child_pid < 0)
+			fprintf(stderr, "failed to fork: %s\n",
+				strerror(errno));
 	}
 
 	for (i = 0; i < nr_task * nr_thread; i++)
@@ -743,7 +783,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:EHDNLWyh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:EHDNLWyh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -777,6 +817,9 @@ int main(int argc, char *argv[])
 			break;
 		case 't':
 			nr_thread = strtol(optarg, NULL, 10);
+			break;
+		case 'b':
+			opt_bind_interval = strtol(optarg, NULL, 10);
 			break;
 		case 'P':
 			prealloc++;
@@ -853,6 +896,19 @@ int main(int argc, char *argv[])
 	if (pipe(ready_fds) || pipe(wake_fds)) {
 		fprintf(stderr, "%s: failed to create pipes: %s\n",
 			ourname, strerror(errno));
+		exit(1);
+	}
+
+	nr_cpu = sysconf(_SC_NPROCESSORS_ONLN);
+	if (nr_cpu < 0) {
+		fprintf(stderr, "%s: failed to get online CPU number: %s\n",
+			ourname, strerror(errno));
+		exit(1);
+	}
+
+	if (opt_bind_interval >= nr_cpu) {
+		fprintf(stderr, "%s: invalid binding interval %d for %d CPUs\n",
+			ourname, opt_bind_interval, nr_cpu);
 		exit(1);
 	}
 
