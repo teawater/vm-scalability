@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <sys/syscall.h>
+#include <poll.h>
 #include "usemem_mincore.h"
 #include "usemem_hugepages.h"
 
@@ -83,6 +84,8 @@ char *pid_filename;
 int map_shared = MAP_PRIVATE;
 int map_populate;
 int fd;
+int ready_fds[2];
+int wake_fds[2];
 
 
 void usage(int ok)
@@ -458,6 +461,25 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 	return rw_bytes;
 }
 
+/* This is copied from hackbench, Thanks Ingo! */
+static void ready(void)
+{
+	char dummy = '*';
+	struct pollfd pollfd = { .fd = wake_fds[0], .events = POLLIN };
+
+	/* Tell them we're ready. */
+	if (write(ready_fds[1], &dummy, 1) != 1) {
+		perror("write pipe");
+		exit(1);
+	}
+
+	/* Wait for "GO" signal */
+	if (poll(&pollfd, 1, -1) != 1) {
+                perror("poll");
+		exit(1);
+	}
+}
+
 unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 {
 	unsigned long rw_bytes;
@@ -581,6 +603,9 @@ long do_units(void)
 
 	if (!unit)
 		unit = bytes;
+
+	ready();
+
 	/*
 	 * Allow a bytes=0 pass for pure fork bomb:
 	 * usemem -n 10000 0 --detach --sleep 10
@@ -661,11 +686,24 @@ int do_tasks(void)
 	int i;
 	int status;
 	int child_pid;
+	char dummy;
 
 	for (i = 0; i < nr_task; i++) {
 		if ((child_pid = fork()) == 0) {
 			return do_task();
 		}
+	}
+
+	for (i = 0; i < nr_task * nr_thread; i++)
+		if (read(ready_fds[0], &dummy, 1) != 1) {
+                        perror("read pipe");
+			return 1;
+		}
+
+	/* Fire! */
+	if (write(wake_fds[1], &dummy, 1) != 1) {
+                perror("write pipe");
+		return 1;
 	}
 
 	for (i = 0; i < nr_task; i++) {
@@ -801,6 +839,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (pipe(ready_fds) || pipe(wake_fds)) {
+		fprintf(stderr, "%s: failed to create pipes: %s\n",
+			ourname, strerror(errno));
+		exit(1);
+	}
+
 	if (step < sizeof(long))
 		step = sizeof(long);
 
@@ -934,8 +978,8 @@ int main(int argc, char *argv[])
 		return 0;		/* return with out doing anything */
 	}
 
-	if (nr_task)
-		return do_tasks();
+	if (!nr_task)
+		nr_task = 1;
 
-	return do_task();
+	return do_tasks();
 }
