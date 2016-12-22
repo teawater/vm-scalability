@@ -6,6 +6,8 @@ else
 	USEMEM="$CMD ./usemem"
 fi
 
+[ -n "$SYNC_RW" ] && USEMEM="$USEMEM -y"
+
 TMPFS_MNT=/tmp/vm-scalability-tmp
 SHM_FILE=$TMPFS_MNT/sparse-${0#*case-}
 

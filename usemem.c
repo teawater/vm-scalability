@@ -74,6 +74,7 @@ int opt_remap = 0;
 int opt_mincore = 0;
 int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
+int opt_sync_rw = 0;
 int sem_id = -1;
 int nr_task;
 int nr_thread;
@@ -119,6 +120,7 @@ void usage(int ok)
 	"    -N|--mincore        get information about pages in memory\n"
 	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
 	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
+	"    -y|--sync-rw        sync between tasks after allocate memory\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -151,6 +153,7 @@ static const struct option opts[] = {
 	{ "advice"	, 0, NULL, 'D' },
 	{ "remap"	, 0, NULL, 'E' },
 	{ "mncr_hgpgs"	, 0, NULL, 'H' },
+	{ "sync-rw"	, 0, NULL, 'y' },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -495,6 +498,9 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 		rw_bytes = bytes / 8;
 	}
 
+	if (opt_sync_rw)
+		ready();
+
 	if (opt_write_signal_read)
 		buffer = p;
 
@@ -604,7 +610,8 @@ long do_units(void)
 	if (!unit)
 		unit = bytes;
 
-	ready();
+	if (!opt_sync_rw)
+		ready();
 
 	/*
 	 * Allow a bytes=0 pass for pure fork bomb:
@@ -736,7 +743,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:EHDNLWh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:EHDNLWyh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -834,6 +841,10 @@ int main(int argc, char *argv[])
 			opt_write_signal_read = 1;
 			break;
 
+		case 'y':
+			opt_sync_rw = 1;
+			break;
+
 		default:
 			usage(1);
 		}
@@ -855,6 +866,12 @@ int main(int argc, char *argv[])
 		gettimeofday(&start_time, NULL);
 
 	opt_bytes = memparse(argv[optind], NULL);
+
+	if (opt_sync_rw && unit && unit != opt_bytes) {
+		fprintf(stderr, "%s: to sync tasks after allocation, unit must equal total size\n",
+			ourname);
+		exit(1);
+	}
 
 	if (!opt_malloc)
 		fd = open(filename, ((opt_readonly && !opt_openrw) ?
