@@ -28,6 +28,7 @@
 #include <sys/syscall.h>
 #include <poll.h>
 #include <sched.h>
+#include <time.h>
 #include "usemem_mincore.h"
 #include "usemem_hugepages.h"
 
@@ -49,6 +50,9 @@
 
 /* used for remapping the allocated size in remap() */
 #define SCALE_FACTOR 10
+
+#define PAGE_SHIFT 12
+#define PFN_OF(addr)	((addr) >> PAGE_SHIFT)
 
 char *ourname;
 int pagesize;
@@ -77,6 +81,7 @@ int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
 int opt_sync_rw = 0;
 int opt_bind_interval = 0;
+unsigned long opt_delay = 0;
 int sem_id = -1;
 int nr_task;
 int nr_thread;
@@ -125,6 +130,7 @@ void usage(int ok)
 	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
 	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
 	"    -y|--sync-rw        sync between tasks after allocate memory\n"
+	"    -e|--delay          delay for each page in ns\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -159,6 +165,7 @@ static const struct option opts[] = {
 	{ "remap"	, 0, NULL, 'E' },
 	{ "mncr_hgpgs"	, 0, NULL, 'H' },
 	{ "sync-rw"	, 0, NULL, 'y' },
+	{ "delay"	, 1, NULL, 'e' },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -222,6 +229,24 @@ unsigned long long memparse(const char *ptr, char **retptr)
 		*retptr = endptr;
 
 	return ret;
+}
+
+unsigned long time_parse(const char *ptr)
+{
+	char *endptr;
+
+	unsigned long nsec = strtoul(ptr, &endptr, 0);
+
+	switch (*endptr) {
+	case 'm':
+		nsec *= 1000;
+	case 'u':
+		nsec *= 1000;
+	default:
+		break;
+	}
+
+	return nsec;
 }
 
 static inline void os_random_seed(unsigned long seed, struct drand48_data *rs)
@@ -428,6 +453,39 @@ void shm_unlock(int seg_id)
 	shmctl(seg_id, SHM_UNLOCK, NULL);
 }
 
+unsigned long do_access(unsigned long *p, unsigned long idx, int read)
+{
+	volatile unsigned long *vp = p;
+
+	if (read)
+		return vp[idx];	/* read data */
+	else {
+		vp[idx] = idx;	/* write data */
+		return 0;
+	}
+}
+
+#define NSEC_PER_SEC  (1UL * 1000 * 1000 * 1000)
+
+long nsec_sub(long nsec1, long nsec2)
+{
+	if (nsec1 < nsec2)
+		return nsec1 - nsec2 + NSEC_PER_SEC;
+	else
+		return nsec1 - nsec2;
+}
+
+void delay(unsigned long delay, unsigned long *p, unsigned long idx, int read)
+{
+	struct timespec start, now;
+
+	clock_gettime(CLOCK_REALTIME, &start);
+	do {
+		do_access(p, idx, read);
+		clock_gettime(CLOCK_REALTIME, &now);
+	} while (nsec_sub(now.tv_nsec, start.tv_nsec) < delay);
+}
+
 static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 				struct drand48_data *rand_data, int read,
 				int *rep, int reps)
@@ -435,9 +493,10 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 	unsigned long i;
 	unsigned long m = bytes / sizeof(*p);
 	unsigned long rw_bytes = 0;
+	unsigned long prev_addr = 0;
+	unsigned long addr;
 
 	for (i = 0; i < m; i += step / sizeof(*p)) {
-		volatile long d;
 		unsigned long idx = i;
 
 		if (opt_randomise)
@@ -452,12 +511,15 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 		}
 
 		/* read / write */
-		if (read)
-			d = p[idx];	/* read data into d */
-		else
-			p[idx] = idx;	/* write data into p[idx] */
+		do_access(p, idx, read);
 
 		rw_bytes += sizeof(*p);
+
+		addr = (unsigned long)(p + idx);
+		if (opt_delay && PFN_OF(addr) != PFN_OF(prev_addr)) {
+			delay(opt_delay, p, idx, read);
+			prev_addr = addr;
+		}
 
 		if (!(i & 0xffff) && runtime_exceeded()) {
 			if (rep)
@@ -783,7 +845,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:EHDNLWyh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -886,6 +948,10 @@ int main(int argc, char *argv[])
 
 		case 'y':
 			opt_sync_rw = 1;
+			break;
+
+		case 'e':
+			opt_delay = time_parse(optarg);
 			break;
 
 		default:
