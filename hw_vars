@@ -9,7 +9,7 @@ fi
 [ -n "$SYNC_RW" ] && USEMEM="$USEMEM -y"
 [ -n "$BIND_CPU" ] && USEMEM="$USEMEM -b $BIND_CPU"
 [ -n "$REPEAT_COUNT" ] && USEMEM="$USEMEM -r $REPEAT_COUNT"
-[ -n "DELAY" ] && USEMEM="$USEMEM -e $DELAY"
+[ -n "$DELAY" ] && USEMEM="$USEMEM -e $DELAY"
 
 TMPFS_MNT=/tmp/vm-scalability-tmp
 SHM_FILE=$TMPFS_MNT/sparse-${0#*case-}
