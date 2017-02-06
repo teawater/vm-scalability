@@ -13,4 +13,4 @@
 create_sparse_file $SPARSE_FILE $ROTATE_BYTES
 $USEMEM -t $nr_task -f $SPARSE_FILE -E --prealloc --readonly --random $((ROTATE_BYTES / nr_task))
 
-rm $SPARSE_FILE-*
+rm $SPARSE_FILE
