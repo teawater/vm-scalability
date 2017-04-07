@@ -2,4 +2,5 @@
 
 . ./hw_vars
 
-$USEMEM -t $nr_task --prealloc $((mem / 2))
+[ -n "$unit_size" ] || unit_size=$((mem / 2))
+$USEMEM -t $nr_task --prealloc $unit_size
