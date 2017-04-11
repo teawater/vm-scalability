@@ -54,6 +54,8 @@
 #define PAGE_SHIFT 12
 #define PFN_OF(addr)	((addr) >> PAGE_SHIFT)
 
+#define MAX_POINTERS	32
+
 char *ourname;
 int pagesize;
 unsigned long done_bytes = 0;
@@ -388,6 +390,18 @@ unsigned long * allocate(unsigned long bytes)
 	return p;
 }
 
+void free_memory(void *ptrs[], unsigned int nptr, unsigned long bytes)
+{
+	unsigned int i;
+
+	for (i = 0; i < nptr; i++) {
+		if (opt_malloc)
+			free(ptrs[i]);
+		else
+			munmap(ptrs[i], bytes);
+	}
+}
+
 int runtime_exceeded(void)
 {
 	struct timeval now;
@@ -550,7 +564,8 @@ static void ready(void)
 	}
 }
 
-unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
+unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
+		      void **pptr)
 {
 	unsigned long rw_bytes;
 	unsigned long *p;
@@ -563,6 +578,8 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data)
 	} else {
 		p = allocate(bytes);
 		rw_bytes = bytes / 8;
+		if (pptr)
+			*pptr = p;
 	}
 
 	if (opt_sync_rw)
@@ -659,6 +676,19 @@ static void output_statistics(unsigned long unit_bytes)
 	write(1, buf, len);
 }
 
+static void timing_free(void *ptrs[], unsigned int nptr, unsigned long bytes)
+{
+	struct timeval start, stop;
+	unsigned long delta_us;
+
+	gettimeofday(&start, NULL);
+	free_memory(ptrs, nptr, bytes);
+	gettimeofday(&stop, NULL);
+	delta_us = (stop.tv_sec - start.tv_sec) * 1000000 +
+		(stop.tv_usec - start.tv_usec);
+	printf("%lu usecs to free memory\n", delta_us);
+}
+
 static void wait_for_sigusr1(int signal) {}
 
 long do_units(void)
@@ -666,6 +696,8 @@ long do_units(void)
 	struct drand48_data rand_data;
 	unsigned long unit_bytes = done_bytes;
 	unsigned long bytes = opt_bytes;
+	void *ptrs[MAX_POINTERS];
+	unsigned int nptr = 0;
 
 	if (opt_detach)
 		detach();
@@ -687,7 +719,9 @@ long do_units(void)
 	do {
 		unsigned long size = min(bytes, unit);
 
-		unit_bytes += do_unit(size, &rand_data);
+		unit_bytes += do_unit(size, &rand_data,
+				      nptr < MAX_POINTERS ? &ptrs[nptr] : NULL);
+		nptr++;
 		bytes -= size;
 		if (runtime_exceeded())
 			break;
@@ -721,6 +755,9 @@ long do_units(void)
 		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0);
 		output_statistics(unit_bytes);
 	}
+
+	if (!prealloc && nptr <= MAX_POINTERS)
+		timing_free(ptrs, nptr, bytes);
 
 	return 0;
 }
