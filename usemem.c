@@ -390,7 +390,8 @@ unsigned long * allocate(unsigned long bytes)
 	return p;
 }
 
-void free_memory(void *ptrs[], unsigned int nptr, unsigned long bytes)
+void free_memory(void *ptrs[], unsigned int nptr,
+		 unsigned long unit, unsigned long last_unit)
 {
 	unsigned int i;
 
@@ -398,7 +399,7 @@ void free_memory(void *ptrs[], unsigned int nptr, unsigned long bytes)
 		if (opt_malloc)
 			free(ptrs[i]);
 		else
-			munmap(ptrs[i], bytes);
+			munmap(ptrs[i], i == nptr - 1 ? last_unit : unit);
 	}
 }
 
@@ -676,13 +677,14 @@ static void output_statistics(unsigned long unit_bytes)
 	write(1, buf, len);
 }
 
-static void timing_free(void *ptrs[], unsigned int nptr, unsigned long bytes)
+static void timing_free(void *ptrs[], unsigned int nptr,
+			unsigned long unit, unsigned long last_unit)
 {
 	struct timeval start, stop;
 	unsigned long delta_us;
 
 	gettimeofday(&start, NULL);
-	free_memory(ptrs, nptr, bytes);
+	free_memory(ptrs, nptr, unit, last_unit);
 	gettimeofday(&stop, NULL);
 	delta_us = (stop.tv_sec - start.tv_sec) * 1000000 +
 		(stop.tv_usec - start.tv_usec);
@@ -696,6 +698,7 @@ long do_units(void)
 	struct drand48_data rand_data;
 	unsigned long unit_bytes = done_bytes;
 	unsigned long bytes = opt_bytes;
+	unsigned long last_unit;
 	void *ptrs[MAX_POINTERS];
 	unsigned int nptr = 0;
 
@@ -722,6 +725,7 @@ long do_units(void)
 		unit_bytes += do_unit(size, &rand_data,
 				      nptr < MAX_POINTERS ? &ptrs[nptr] : NULL);
 		nptr++;
+		last_unit = size;
 		bytes -= size;
 		if (runtime_exceeded())
 			break;
@@ -757,7 +761,7 @@ long do_units(void)
 	}
 
 	if (!prealloc && nptr <= MAX_POINTERS)
-		timing_free(ptrs, nptr, bytes);
+		timing_free(ptrs, nptr, unit, last_unit);
 
 	return 0;
 }
