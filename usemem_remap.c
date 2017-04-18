@@ -18,11 +18,11 @@
 int main (int argc, char *argv[])
 {
 	int fd;
-	int pagesize = getpagesize();
+	unsigned long pagesize = getpagesize();
 	int i;
 
 	unsigned long size;
-	int no_of_pages;
+	unsigned long no_of_pages;
 
 	/* initialize to NULL */
 	unsigned char *start = NULL;
