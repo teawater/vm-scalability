@@ -83,6 +83,7 @@ int opt_mincore = 0;
 int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
 int opt_sync_rw = 0;
+int opt_sync_free = 0;
 int opt_bind_interval = 0;
 unsigned long opt_delay = 0;
 int sem_id = -1;
@@ -96,8 +97,10 @@ char *pid_filename;
 int map_shared = MAP_PRIVATE;
 int map_populate;
 int fd;
-int ready_fds[2];
-int wake_fds[2];
+int start_ready_fds[2];
+int start_wake_fds[2];
+int free_ready_fds[2];
+int free_wake_fds[2];
 
 
 void usage(int ok)
@@ -133,6 +136,7 @@ void usage(int ok)
 	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
 	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
 	"    -y|--sync-rw        sync between tasks after allocate memory\n"
+	"    -x|--sync-free      sync between tasks before free memory\n"
 	"    -e|--delay          delay for each page in ns\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
@@ -548,7 +552,7 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 }
 
 /* This is copied from hackbench, Thanks Ingo! */
-static void ready(void)
+static void ready(int ready_fds[], int wake_fds[])
 {
 	char dummy = '*';
 	struct pollfd pollfd = { .fd = wake_fds[0], .events = POLLIN };
@@ -585,7 +589,7 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 	}
 
 	if (opt_sync_rw)
-		ready();
+		ready(start_ready_fds, start_wake_fds);
 
 	if (!started) {
 		/* Avoid timing memory allocation and syncing */
@@ -720,7 +724,7 @@ long do_units(void)
 		unit = bytes;
 
 	if (!opt_sync_rw)
-		ready();
+		ready(start_ready_fds, start_wake_fds);
 
 	/*
 	 * Allow a bytes=0 pass for pure fork bomb:
@@ -767,6 +771,8 @@ long do_units(void)
 		output_statistics(unit_bytes);
 	}
 
+	if (opt_sync_free)
+		ready(free_ready_fds, free_wake_fds);
 	if (!prealloc && nptr <= MAX_POINTERS)
 		timing_free(ptrs, nptr, unit, last_unit);
 
@@ -836,13 +842,32 @@ int do_task(int task_nr)
 	return 0;
 }
 
+int synchronize_tasks(int ready_fds[], int wake_fds[])
+{
+	int i;
+	char dummy;
+	int tasks = nr_thread ? nr_task * nr_thread : nr_task;
+
+	for (i = 0; i < tasks; i++)
+		if (read(ready_fds[0], &dummy, 1) != 1) {
+			perror("read pipe");
+			return 1;
+		}
+
+	/* Fire! */
+	if (write(wake_fds[1], &dummy, 1) != 1) {
+		perror("write pipe");
+		return 1;
+	}
+
+	return 0;
+}
+
 int do_tasks(void)
 {
 	int i;
 	int status;
 	int child_pid;
-	char dummy;
-	int tasks = nr_thread ? nr_task * nr_thread : nr_task;
 
 	for (i = 0; i < nr_task; i++) {
 		if ((child_pid = fork()) == 0)
@@ -852,17 +877,11 @@ int do_tasks(void)
 				strerror(errno));
 	}
 
-	for (i = 0; i < tasks; i++)
-		if (read(ready_fds[0], &dummy, 1) != 1) {
-                        perror("read pipe");
-			return 1;
-		}
-
-	/* Fire! */
-	if (write(wake_fds[1], &dummy, 1) != 1) {
-                perror("write pipe");
+	if (synchronize_tasks(start_ready_fds, start_wake_fds))
 		return 1;
-	}
+
+	if (opt_sync_free && synchronize_tasks(free_ready_fds, free_wake_fds))
+		return 1;
 
 	for (i = 0; i < nr_task; i++) {
 		if (wait3(&status, 0, 0) < 0) {
@@ -894,7 +913,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -999,6 +1018,10 @@ int main(int argc, char *argv[])
 			opt_sync_rw = 1;
 			break;
 
+		case 'x':
+			opt_sync_free = 1;
+			break;
+
 		case 'e':
 			opt_delay = time_parse(optarg);
 			break;
@@ -1008,7 +1031,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (pipe(ready_fds) || pipe(wake_fds)) {
+	if (pipe(start_ready_fds) || pipe(start_wake_fds) ||
+	    pipe(free_ready_fds) || pipe(free_wake_fds)) {
 		fprintf(stderr, "%s: failed to create pipes: %s\n",
 			ourname, strerror(errno));
 		exit(1);
