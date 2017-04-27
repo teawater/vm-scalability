@@ -842,6 +842,7 @@ int do_tasks(void)
 	int status;
 	int child_pid;
 	char dummy;
+	int tasks = nr_thread ? nr_task * nr_thread : nr_task;
 
 	for (i = 0; i < nr_task; i++) {
 		if ((child_pid = fork()) == 0)
@@ -851,7 +852,7 @@ int do_tasks(void)
 				strerror(errno));
 	}
 
-	for (i = 0; i < nr_task * nr_thread; i++)
+	for (i = 0; i < tasks; i++)
 		if (read(ready_fds[0], &dummy, 1) != 1) {
                         perror("read pipe");
 			return 1;
