@@ -35,7 +35,7 @@ kill -INT $pid
 
 # the sleep is necessary for umount to succeed
 # it takes some time to kill the usemem process
-while [ -d /proc/$pid -a "$(cat /proc/$pid/comm)" = 'usemem' ]
+while [ -d /proc/$pid -a "$(cat /proc/$pid/comm 2>/dev/null)" = 'usemem' ]
 do
 	sleep 0.1
 done
