@@ -146,7 +146,11 @@ ROTATE_BYTES=$((1<<42))
 # 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
 AS_LIMIT=$((1<<46))
 
+# prevent OOM: limit pagetable pages to half available memory
+# $mem_avail / 2 / 4K = upper_limit_nr_page_table_pages
+# every PTE maps 2M space, so
+# $upper_limit_nr_page_table_pages * 2M = upper_limit_test_size = PTE_LIMIT
+# PTE_LIMIT = 256 * $mem_tail
 PTE_LIMIT=$((mem_avail << 8))
 
-# prevent OOM: limit pagetable pages to half available memory
 [ "$ROTATE_BYTES" -gt $PTE_LIMIT ] && ROTATE_BYTES=$PTE_LIMIT
