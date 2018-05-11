@@ -56,6 +56,13 @@
 
 #define MAX_POINTERS	32
 
+#ifndef MAP_HUGE_2MB
+#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
+#endif
+#ifndef MAP_HUGE_1GB
+#define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
+#endif
+
 char *ourname;
 int pagesize;
 unsigned long done_bytes = 0;
@@ -97,6 +104,7 @@ char *pid_filename;
 int map_shared = MAP_PRIVATE;
 int map_populate;
 int map_anonymous;
+int map_hugetlb;
 int fd;
 int start_ready_fds[2];
 int start_wake_fds[2];
@@ -140,6 +148,7 @@ void usage(int ok)
 	"    -x|--sync-free      sync between tasks before free memory\n"
 	"    -e|--delay          delay for each page in ns\n"
 	"    -O|--anonymous      mmap with MAP_ANONYMOUS\n"
+	"    -U|--hugetlb        allocate hugetlbfs page\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -380,7 +389,7 @@ unsigned long * allocate(unsigned long bytes)
 	} else {
 		p = mmap(NULL, bytes, (opt_readonly && !opt_openrw) ?
 			 PROT_READ : PROT_READ|PROT_WRITE,
-			 map_shared|map_populate|map_anonymous,
+			 map_shared|map_populate|map_anonymous|map_hugetlb,
 			 map_anonymous ? -1 : fd, 0);
 		if (p == MAP_FAILED) {
 			fprintf(stderr, "%s: mmap failed: %s\n",
@@ -916,7 +925,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -1031,6 +1040,9 @@ int main(int argc, char *argv[])
 
 		case 'O':
 			map_anonymous = MAP_ANONYMOUS;
+
+		case 'U':
+			map_hugetlb = MAP_HUGETLB | MAP_HUGE_2MB;
 			break;
 
 		default:
