@@ -96,6 +96,7 @@ char *filename = "/dev/zero";
 char *pid_filename;
 int map_shared = MAP_PRIVATE;
 int map_populate;
+int map_anonymous;
 int fd;
 int start_ready_fds[2];
 int start_wake_fds[2];
@@ -138,6 +139,7 @@ void usage(int ok)
 	"    -y|--sync-rw        sync between tasks after allocate memory\n"
 	"    -x|--sync-free      sync between tasks before free memory\n"
 	"    -e|--delay          delay for each page in ns\n"
+	"    -O|--anonymous      mmap with MAP_ANONYMOUS\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -378,7 +380,8 @@ unsigned long * allocate(unsigned long bytes)
 	} else {
 		p = mmap(NULL, bytes, (opt_readonly && !opt_openrw) ?
 			 PROT_READ : PROT_READ|PROT_WRITE,
-			 map_shared|map_populate, fd, 0);
+			 map_shared|map_populate|map_anonymous,
+			 map_anonymous ? -1 : fd, 0);
 		if (p == MAP_FAILED) {
 			fprintf(stderr, "%s: mmap failed: %s\n",
 				ourname, strerror(errno));
@@ -913,7 +916,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxh", opts, NULL)) != -1)
+				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -1024,6 +1027,10 @@ int main(int argc, char *argv[])
 
 		case 'e':
 			opt_delay = time_parse(optarg);
+			break;
+
+		case 'O':
+			map_anonymous = MAP_ANONYMOUS;
 			break;
 
 		default:
