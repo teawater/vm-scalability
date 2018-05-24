@@ -1,5 +1,5 @@
 #!/bin/sh
 
-. ./case-small-allocs-common
+. ./small-allocs-common
 
 $USEMEM -n $nr_task --readonly --unit $unit_size $((size / nr_task))
