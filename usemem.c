@@ -1174,14 +1174,13 @@ int main(int argc, char *argv[])
 		int i;
 		int number_of_pages;
 
-		unsigned char *ptr;
 		unsigned char *p = (unsigned char *)allocate_hugepage_segment(opt_bytes);
 		unsigned long pagesize = HUGE_PAGE_SIZE;
 
 		char modify_nr_hugepages[50];
 
 		/* error checking done inside the mincore_hugepages function */
-		ptr = mincore_hugepages(p, opt_bytes);
+		mincore_hugepages(p, opt_bytes);
 
 		/* change protection of the hugepage segment */
 		if (mprotect(p, opt_bytes, PROT_WRITE) == -1) {
