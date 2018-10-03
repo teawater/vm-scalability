@@ -105,6 +105,7 @@ int map_shared = MAP_PRIVATE;
 int map_populate;
 int map_anonymous;
 int map_hugetlb;
+off_t map_offset;
 int fd;
 int start_ready_fds[2];
 int start_wake_fds[2];
@@ -121,6 +122,7 @@ void usage(int ok)
 	"    -b|--bind N         bind tasks with CPU number internal as N\n"
 	"    -a|--malloc         obtain memory from malloc()\n"
 	"    -f|--file FILE      mmap FILE, default /dev/zero\n"
+	"    -B|--offset bytes   mmap offset, default 0\n"
 	"    -F|--prefault       prefault mmap with MAP_POPULATE\n"
 	"    -P|--prealloc       allocate memory before fork\n"
 	"    -u|--unit SIZE      allocate memory in SIZE chunks\n"
@@ -173,6 +175,7 @@ static const struct option opts[] = {
 	{ "prefault"	, 0, NULL, 'F' },
 	{ "repeat"	, 1, NULL, 'r' },
 	{ "file"	, 1, NULL, 'f' },
+	{ "offset"	, 1, NULL, 'B' },
 	{ "pid-file"	, 1, NULL, 'p' },
 	{ "detach"	, 0, NULL, 'd' },
 	{ "sleep"	, 1, NULL, 's' },
@@ -390,7 +393,7 @@ unsigned long * allocate(unsigned long bytes)
 		p = mmap(NULL, bytes, (opt_readonly && !opt_openrw) ?
 			 PROT_READ : PROT_READ|PROT_WRITE,
 			 map_shared|map_populate|map_anonymous|map_hugetlb,
-			 map_anonymous ? -1 : fd, 0);
+			 map_anonymous ? -1 : fd, map_offset);
 		if (p == MAP_FAILED) {
 			fprintf(stderr, "%s: mmap failed: %s\n",
 				ourname, strerror(errno));
@@ -925,7 +928,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUh", opts, NULL)) != -1)
+				"aAB:f:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -943,6 +946,9 @@ int main(int argc, char *argv[])
 		case 'f':
 			filename = optarg;
 			map_shared = MAP_SHARED;
+			break;
+		case 'B':
+			map_offset = strtol(optarg, NULL, 10);
 			break;
 		case 'p':
 			pid_filename = optarg;
