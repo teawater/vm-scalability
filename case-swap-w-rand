@@ -1,1 +1,12 @@
-case-swap-w-seq
+#!/bin/sh
+
+. ./hw_vars
+
+if [ "$SwapTotal" -eq 0 ]; then
+	echo "No swap space. Please setup swap before running $0" >&2
+	exit 1
+fi
+
+[ -n "$unit_size" ] || unit_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
+
+$USEMEM -n $nr_task --random $((unit_size / nr_task))

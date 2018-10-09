@@ -9,17 +9,4 @@ fi
 
 [ -n "$unit_size" ] || unit_size=$(( ((MemAvailable + SwapTotal) << 10) * 3 / 4))
 
-testcase=$(basename $0)
-if [ "${testcase%-mt}" != "$testcase" ]; then
-	multi_task_option="-t"
-else
-	multi_task_option="-n"
-fi
-
-if [ "${testcase%-rand}" != "$testcase" ]; then
-	rand_seq_option="--random"
-else
-	rand_seq_option=""
-fi
-
-$USEMEM $multi_task_option $nr_task $rand_seq_option $((unit_size / nr_task))
+$USEMEM -n $nr_task $((unit_size / nr_task))
