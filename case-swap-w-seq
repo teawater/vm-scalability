@@ -16,7 +16,7 @@ else
 	multi_task_option="-n"
 fi
 
-if [ "${testcase%-rand}" != "$testcase" ]; then
+if [ "${testcase#*-rand}" != "$testcase" ]; then
 	rand_seq_option="--random"
 else
 	rand_seq_option=""
