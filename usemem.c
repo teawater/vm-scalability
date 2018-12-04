@@ -103,6 +103,7 @@ char *filename = "/dev/zero";
 char *pid_filename;
 int map_shared = MAP_PRIVATE;
 int map_populate;
+int map_locked;
 int map_anonymous;
 int map_hugetlb;
 off_t map_offset;
@@ -389,10 +390,14 @@ unsigned long * allocate(unsigned long bytes)
 			perror("malloc");
 			exit(1);
 		}
+		if (do_mlock && mlock(p, bytes) < 0) {
+			perror("mlock");
+			exit(1);
+		}
 	} else {
 		p = mmap(NULL, bytes, (opt_readonly && !opt_openrw) ?
 			 PROT_READ : PROT_READ|PROT_WRITE,
-			 map_shared|map_populate|map_anonymous|map_hugetlb,
+			 map_shared|map_populate|map_locked|map_anonymous|map_hugetlb,
 			 map_anonymous ? -1 : fd, map_offset);
 		if (p == MAP_FAILED) {
 			fprintf(stderr, "%s: mmap failed: %s\n",
@@ -400,11 +405,6 @@ unsigned long * allocate(unsigned long bytes)
 			exit(1);
 		}
 		p = (unsigned long *)ALIGN((unsigned long)p, pagesize - 1);
-	}
-
-	if (do_mlock && mlock(p, bytes) < 0) {
-		perror("mlock");
-		exit(1);
 	}
 
 	return p;
@@ -977,6 +977,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'M':
 			do_mlock = 1;
+			map_locked = MAP_LOCKED;
 			break;
 		case 'q':
 			quiet = 1;
