@@ -810,11 +810,13 @@ int do_task(int task_nr)
 	cpu_set_t *mask;
 	size_t size;
 
-	size = CPU_ALLOC_SIZE(nr_cpu);
-	mask = CPU_ALLOC(nr_cpu);
-	if (mask == NULL) {
-		perror("CPU_ALLOC");
-		exit(1);
+	if (opt_bind_interval) {
+		size = CPU_ALLOC_SIZE(nr_cpu);
+		mask = CPU_ALLOC(nr_cpu);
+		if (mask == NULL) {
+			perror("CPU_ALLOC");
+			exit(1);
+		}
 	}
 
 	if (!nr_thread) {
@@ -844,7 +846,8 @@ int do_task(int task_nr)
 		}
 	}
 
-	CPU_FREE(mask);
+	if (opt_bind_interval)
+		CPU_FREE(mask);
 
 	for (i = 0; i < nr_thread; i++) {
 		ret = pthread_join(threads[i], (void *)&thread_ret);
@@ -1064,17 +1067,19 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	nr_cpu = sysconf(_SC_NPROCESSORS_ONLN);
-	if (nr_cpu < 0) {
-		fprintf(stderr, "%s: failed to get online CPU number: %s\n",
-			ourname, strerror(errno));
-		exit(1);
-	}
-
 	if (opt_bind_interval >= nr_cpu) {
-		fprintf(stderr, "%s: invalid binding interval %d for %d CPUs\n",
-			ourname, opt_bind_interval, nr_cpu);
-		exit(1);
+		nr_cpu = sysconf(_SC_NPROCESSORS_ONLN);
+		if (nr_cpu < 0) {
+			fprintf(stderr, "%s: failed to get online CPU number: %s\n",
+				ourname, strerror(errno));
+			exit(1);
+		}
+
+		if (opt_bind_interval >= nr_cpu) {
+			fprintf(stderr, "%s: invalid binding interval %d for %d CPUs\n",
+				ourname, opt_bind_interval, nr_cpu);
+			exit(1);
+		}
 	}
 
 	if (step < sizeof(long))
