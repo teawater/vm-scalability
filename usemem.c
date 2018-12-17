@@ -93,7 +93,6 @@ int opt_sync_rw = 0;
 int opt_sync_free = 0;
 int opt_bind_interval = 0;
 unsigned long opt_delay = 0;
-int sem_id = -1;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -112,7 +111,6 @@ int start_ready_fds[2];
 int start_wake_fds[2];
 int free_ready_fds[2];
 int free_wake_fds[2];
-
 
 void usage(int ok)
 {
@@ -284,29 +282,6 @@ static inline long os_random_long(unsigned long max, struct drand48_data *rs)
 	return (unsigned long)((double)max * val / (RAND_MAX + 1.0));
 }
 
-/*
- * semaphore get/put wrapper
- */
-int down(int sem_id)
-{
-	struct sembuf buf = {
-		.sem_num = 0,
-		.sem_op  = -1,
-		.sem_flg = SEM_UNDO,
-	};
-	return semop(sem_id, &buf, 1);
-}
-
-int up(int sem_id)
-{
-	struct sembuf buf = {
-		.sem_num = 0,
-		.sem_op  = 1,
-		.sem_flg = SEM_UNDO,
-	};
-	return semop(sem_id, &buf, 1);
-}
-
 void update_pid_file(pid_t pid)
 {
 	FILE *file;
@@ -324,30 +299,9 @@ void update_pid_file(pid_t pid)
 	fclose(file);
 }
 
-
-void sighandler(int sig, siginfo_t *si, void *arg)
-{
-	up(sem_id);
-
-	printf("usemem: exit on signal %d\n", sig);
-	exit(0);
-}
-
 void detach(void)
 {
 	pid_t pid;
-
-	sem_id = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT|IPC_EXCL);
-	if (sem_id == -1) {
-		perror("semget");
-		exit(1);
-	}
-	if (semctl(sem_id, 0, SETVAL, 0) == -1) {
-		perror("semctl");
-		if (semctl(sem_id, 0, IPC_RMID) == -1)
-			perror("sem_id IPC_RMID");
-		exit(1);
-	}
 
 	pid = fork();
 	if (pid < 0) {
@@ -357,23 +311,7 @@ void detach(void)
 
 	if (pid) { /* parent */
 		update_pid_file(pid);
-		if (down(sem_id))
-			perror("down");
-		semctl(sem_id, 0, IPC_RMID);
 		exit(0);
-	}
-
-	if (pid == 0) { /* child */
-		struct sigaction sa = {
-			.sa_sigaction = sighandler,
-			.sa_flags = SA_SIGINFO,
-		};
-
-		/*
-		 * XXX: SIGKILL cannot be caught.
-		 * The parent will wait for ever if child is OOM killed.
-		 */
-		sigaction(SIGINT, &sa, NULL);
 	}
 }
 
@@ -728,9 +666,6 @@ long do_units(void)
 	void *ptrs[MAX_POINTERS];
 	unsigned int nptr = 0;
 
-	if (opt_detach)
-		detach();
-
 	/* Base the random seed on the thread ID for multithreaded tests */
 	if (opt_randomise)
 		os_random_seed(time(0) ^ syscall(SYS_gettid), &rand_data);
@@ -770,8 +705,8 @@ long do_units(void)
 		}
 	}
 
-	if (opt_detach && up(sem_id))
-		perror("up");
+	if (opt_detach)
+		detach();
 
 	if (sleep_secs)
 		sleep(sleep_secs);
