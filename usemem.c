@@ -73,8 +73,7 @@ unsigned long *prealloc;
 unsigned long *buffer;
 int sleep_secs = 0;
 time_t runtime_secs = 0;
-__thread struct timeval start_time;
-__thread int started = 0;
+struct timeval start_time;
 int reps = 1;
 int do_mlock = 0;
 int do_getchar = 0;
@@ -543,12 +542,6 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 
 	if (opt_sync_rw)
 		ready(start_ready_fds, start_wake_fds);
-
-	if (!started) {
-		/* Avoid timing memory allocation and syncing */
-		gettimeofday(&start_time, NULL);
-		started = 1;
-	}
 
 	if (opt_write_signal_read)
 		buffer = p;
