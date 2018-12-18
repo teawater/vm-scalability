@@ -1050,6 +1050,7 @@ int main(int argc, char *argv[])
 
 		case 'O':
 			map_anonymous = MAP_ANONYMOUS;
+			break;
 
 		case 'U':
 			map_hugetlb = MAP_HUGETLB | MAP_HUGE_2MB;
