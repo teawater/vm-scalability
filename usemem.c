@@ -33,6 +33,7 @@
 #include "usemem_mincore.h"
 #include "usemem_hugepages.h"
 
+#define uninitialized_var(x) x = x
 #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 
 #define HUGE_PAGE_SIZE (2UL * 1024 * 1024)
@@ -736,8 +737,8 @@ int do_task(int task_nr)
 	long thread_ret;
 	int ret;
 	int i;
-	cpu_set_t *mask;
-	size_t size;
+	cpu_set_t* uninitialized_var(mask);
+	size_t uninitialized_var(size);
 
 	if (opt_bind_interval) {
 		size = CPU_ALLOC_SIZE(nr_cpu);
