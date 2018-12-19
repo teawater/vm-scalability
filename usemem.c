@@ -993,6 +993,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (opt_malloc) {
+		if (map_populate|map_anonymous|map_hugetlb)
+			fprintf(stderr,
+				"%s: mmap options ignored for malloc()\n",
+				ourname);
+	} else {
+		if (map_hugetlb && !map_anonymous)
+			fprintf(stderr,
+				"%s: MAP_HUGETLB relies on MAP_ANONYMOUS\n",
+				ourname);
+	}
+
 	if (pipe(start_ready_fds) || pipe(start_wake_fds) ||
 	    pipe(free_ready_fds) || pipe(free_wake_fds)) {
 		fprintf(stderr, "%s: failed to create pipes: %s\n",
