@@ -14,6 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
@@ -701,8 +702,8 @@ long do_units(void)
 	if (opt_detach)
 		detach();
 
-	if (sleep_secs)
-		sleep(sleep_secs);
+	while (sleep_secs)
+		sleep_secs = sleep(sleep_secs);
 
 	if (opt_write_signal_read) {
 		sigset_t set;
@@ -915,6 +916,8 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			sleep_secs = strtol(optarg, NULL, 10);
+			if (sleep_secs < 0)
+				sleep_secs = INT_MAX;
 			break;
 		case 'T':
 			runtime_secs = strtol(optarg, NULL, 10);
