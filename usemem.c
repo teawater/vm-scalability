@@ -330,10 +330,6 @@ unsigned long * allocate(unsigned long bytes)
 			perror("malloc");
 			exit(1);
 		}
-		if (do_mlock && mlock(p, bytes) < 0) {
-			perror("mlock");
-			exit(1);
-		}
 	} else {
 		p = mmap(NULL, bytes, (opt_readonly && !opt_openrw) ?
 			 PROT_READ : PROT_READ|PROT_WRITE,
@@ -526,7 +522,7 @@ static void ready(int ready_fds[], int wake_fds[])
 }
 
 unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
-		      void **pptr)
+		      void **pptr, unsigned long *plen)
 {
 	unsigned long rw_bytes;
 	unsigned long *p;
@@ -539,8 +535,10 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 	} else {
 		p = allocate(bytes);
 		rw_bytes = bytes / 8;
-		if (pptr)
+		if (pptr) {
 			*pptr = p;
+			*plen = bytes;
+		}
 	}
 
 	if (opt_sync_rw)
@@ -660,7 +658,9 @@ long do_units(void)
 	unsigned long bytes = opt_bytes;
 	unsigned long last_unit;
 	void *ptrs[MAX_POINTERS];
+	unsigned long lens[MAX_POINTERS];
 	unsigned int nptr = 0;
+	int i;
 
 	/* Base the random seed on the thread ID for multithreaded tests */
 	if (opt_randomise)
@@ -680,7 +680,8 @@ long do_units(void)
 		unsigned long size = min(bytes, unit);
 
 		unit_bytes += do_unit(size, &rand_data,
-				      nptr < MAX_POINTERS ? &ptrs[nptr] : NULL);
+				      nptr < MAX_POINTERS ? &ptrs[nptr] : NULL,
+				      nptr < MAX_POINTERS ? &lens[nptr] : NULL);
 		nptr++;
 		last_unit = size;
 		bytes -= size;
@@ -703,6 +704,22 @@ long do_units(void)
 
 	if (opt_detach)
 		detach();
+
+	if (do_mlock) {
+		if (prealloc) {
+			if (mlock(prealloc, opt_bytes) < 0) {
+				perror("mlock");
+				exit(1);
+			}
+		} else {
+			for (i = 0; i < nptr; i++) {
+				if (mlock(ptrs[i], lens[i]) < 0) {
+					perror("mlock");
+					exit(1);
+				}
+			}
+		}
+	}
 
 	while (sleep_secs)
 		sleep_secs = sleep(sleep_secs);
@@ -911,7 +928,6 @@ int main(int argc, char *argv[])
 			break;
 		case 'M':
 			do_mlock = 1;
-			map_locked = MAP_LOCKED;
 			break;
 		case 'q':
 			quiet = 1;
