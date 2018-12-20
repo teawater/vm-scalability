@@ -187,6 +187,7 @@ static const struct option opts[] = {
 	{ "mncr_hgpgs"	, 0, NULL, 'H' },
 	{ "sync-rw"	, 0, NULL, 'y' },
 	{ "delay"	, 1, NULL, 'e' },
+	{ "hugetlb"	, 0, NULL, 'U' },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
