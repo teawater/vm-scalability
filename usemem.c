@@ -94,6 +94,7 @@ int opt_sync_rw = 0;
 int opt_sync_free = 0;
 int opt_bind_interval = 0;
 unsigned long opt_delay = 0;
+int opt_read_again = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -151,6 +152,7 @@ void usage(int ok)
 	"    -e|--delay          delay for each page in ns\n"
 	"    -O|--anonymous      mmap with MAP_ANONYMOUS\n"
 	"    -U|--hugetlb        allocate hugetlbfs page\n"
+	"    -Z|--read-again     read memory again after access the memory\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -188,6 +190,7 @@ static const struct option opts[] = {
 	{ "sync-rw"	, 0, NULL, 'y' },
 	{ "delay"	, 1, NULL, 'e' },
 	{ "hugetlb"	, 0, NULL, 'U' },
+	{ "read-again"	, 0, NULL, 'Z' },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -616,7 +619,7 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 	return rw_bytes;
 }
 
-static void output_statistics(unsigned long unit_bytes)
+static void output_statistics(unsigned long unit_bytes, const char *intro)
 {
 	struct timeval stop;
 	char buf[1024];
@@ -629,8 +632,8 @@ static void output_statistics(unsigned long unit_bytes)
 		(stop.tv_usec - start_time.tv_usec);
 	throughput = ((unit_bytes * 1000000ULL) >> 10) / delta_us;
 	len = snprintf(buf, sizeof(buf),
-			"%lu bytes / %lu usecs = %lu KB/s\n",
-			unit_bytes, delta_us, throughput);
+			"%s%lu bytes / %lu usecs = %lu KB/s\n",
+			intro, unit_bytes, delta_us, throughput);
 	fflush(stdout);
 	write(1, buf, len);
 }
@@ -690,7 +693,34 @@ long do_units(void)
 	} while (bytes);
 
 	if (!opt_write_signal_read && unit_bytes)
-		output_statistics(unit_bytes);
+		output_statistics(unit_bytes, "");
+
+	if (opt_read_again && unit_bytes) {
+		unsigned long rw_bytes = 0;
+
+		gettimeofday(&start_time, NULL);
+		for (i = 0; i < nptr; i++) {
+			int rep;
+
+			for (rep = 0; rep < reps; rep++) {
+				if (rep > 0 && !quiet) {
+					printf(".");
+					fflush(stdout);
+				}
+
+				rw_bytes += do_rw_once(ptrs[i], lens[i], &rand_data, 1, &rep, reps);
+
+				if (msync_mode) {
+					if ((msync(ptrs[i], lens[i], msync_mode)) == -1) {
+						fprintf(stderr, "msync failed with error %s \n", strerror(errno));
+						exit(1);
+					}
+				}
+			}
+		}
+
+		output_statistics(rw_bytes, "read again ");
+	}
 
 	if (opt_write_signal_read) {
 		struct sigaction act;
@@ -731,7 +761,7 @@ long do_units(void)
 		sigsuspend(&set);
 		gettimeofday(&start_time, NULL);
 		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0);
-		output_statistics(unit_bytes);
+		output_statistics(unit_bytes, "");
 	}
 
 	if (opt_sync_free)
@@ -879,7 +909,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAB:f:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUh", opts, NULL)) != -1)
+				"aAB:f:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUZh", opts, NULL)) != -1)
 		{
 		switch (c) {
 		case 'a':
@@ -1003,6 +1033,10 @@ int main(int argc, char *argv[])
 
 		case 'U':
 			map_hugetlb = MAP_HUGETLB | MAP_HUGE_2MB;
+			break;
+
+		case 'Z':
+			opt_read_again = 1;
 			break;
 
 		default:
