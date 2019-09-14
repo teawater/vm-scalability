@@ -76,7 +76,7 @@ unsigned long *buffer;
 int sleep_secs = 0;
 time_t runtime_secs = 0;
 struct timeval start_time;
-int reps = 1;
+int opt_repeat = 1;
 int do_mlock = 0;
 int do_getchar = 0;
 int opt_randomise = 0;
@@ -462,7 +462,7 @@ void delay(unsigned long delay, unsigned long *p, unsigned long idx, int read)
 
 static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 				struct drand48_data *rand_data, int read,
-				int *rep, int reps)
+				int *rep)
 {
 	unsigned long i;
 	unsigned long m = bytes / sizeof(*p);
@@ -497,7 +497,7 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 
 		if (!(i & 0xffff) && runtime_exceeded()) {
 			if (rep)
-				*rep = reps;
+				*rep = opt_repeat;
 			break;
 		}
 	}
@@ -550,13 +550,13 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 	if (opt_write_signal_read)
 		buffer = p;
 
-	for (rep = 0; rep < reps; rep++) {
+	for (rep = 0; rep < opt_repeat; rep++) {
 		if (rep > 0 && !quiet) {
 			printf(".");
 			fflush(stdout);
 		}
 
-		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep, reps);
+		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep);
 
 		if (msync_mode) {
 			if ((msync(p, bytes, msync_mode)) == -1) {
@@ -702,13 +702,13 @@ long do_units(void)
 		for (i = 0; i < nptr; i++) {
 			int rep;
 
-			for (rep = 0; rep < reps; rep++) {
+			for (rep = 0; rep < opt_repeat; rep++) {
 				if (rep > 0 && !quiet) {
 					printf(".");
 					fflush(stdout);
 				}
 
-				rw_bytes += do_rw_once(ptrs[i], lens[i], &rand_data, 1, &rep, reps);
+				rw_bytes += do_rw_once(ptrs[i], lens[i], &rand_data, 1, &rep, opt_repeat);
 
 				if (msync_mode) {
 					if ((msync(ptrs[i], lens[i], msync_mode)) == -1) {
@@ -974,7 +974,7 @@ int main(int argc, char *argv[])
 			opt_detach = 1;
 			break;
 		case 'r':
-			reps = strtol(optarg, NULL, 10);
+			opt_repeat = strtol(optarg, NULL, 10);
 			break;
 		case 'R':
 			opt_randomise++;
