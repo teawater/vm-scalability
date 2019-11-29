@@ -462,7 +462,7 @@ void delay(unsigned long delay, unsigned long *p, unsigned long idx, int read)
 
 static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 				struct drand48_data *rand_data, int read,
-				int *rep)
+				int *rep, int opt_repeat)
 {
 	unsigned long i;
 	unsigned long m = bytes / sizeof(*p);
@@ -556,7 +556,7 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 			fflush(stdout);
 		}
 
-		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep);
+		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep, opt_repeat);
 
 		if (msync_mode) {
 			if ((msync(p, bytes, msync_mode)) == -1) {
