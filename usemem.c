@@ -95,6 +95,7 @@ int opt_sync_free = 0;
 int opt_bind_interval = 0;
 unsigned long opt_delay = 0;
 int opt_read_again = 0;
+int opt_punch_holes = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -153,6 +154,7 @@ void usage(int ok)
 	"    -O|--anonymous      mmap with MAP_ANONYMOUS\n"
 	"    -U|--hugetlb        allocate hugetlbfs page\n"
 	"    -Z|--read-again     read memory again after access the memory\n"
+	"    --punch-holes       free every other page after allocation\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -191,6 +193,7 @@ static const struct option opts[] = {
 	{ "delay"	, 1, NULL, 'e' },
 	{ "hugetlb"	, 0, NULL, 'U' },
 	{ "read-again"	, 0, NULL, 'Z' },
+	{ "punch-holes", 0, NULL, 0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -655,6 +658,21 @@ static void timing_free(void *ptrs[], unsigned int nptr,
 
 static void wait_for_sigusr1(int signal) {}
 
+static void do_punch_holes(void *addr, unsigned long len)
+{
+	unsigned long offset;
+
+	for (offset = 0; offset + 2 * pagesize <= len; offset += 2 * pagesize) {
+		if (madvise(addr + offset, pagesize,
+			MADV_DONTNEED) != 0) {
+			fprintf(stderr,
+				"madvise failed with error %s\n",
+				strerror(errno));
+			exit(1);
+		}
+	}
+}
+
 long do_units(void)
 {
 	struct drand48_data rand_data;
@@ -749,6 +767,15 @@ long do_units(void)
 					exit(1);
 				}
 			}
+		}
+	}
+
+	if (opt_punch_holes) {
+		if (prealloc)
+			do_punch_holes(prealloc, opt_bytes);
+		else {
+			for (i = 0; i < nptr; i++)
+				do_punch_holes(ptrs[i], lens[i]);
 		}
 	}
 
@@ -896,6 +923,7 @@ int do_tasks(void)
 int main(int argc, char *argv[])
 {
 	int c;
+	int opt_index = 0;
 
 #ifdef DBG
 	/* print the command line parameters passed on to main */
@@ -910,9 +938,18 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAB:f:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUZh", opts, NULL)) != -1)
+				"aAB:f:FPp:gqowRMm:n:t:b:ds:T:Sr:u:j:e:EHDNLWyxOUZh",
+				opts, &opt_index)) != -1)
 		{
 		switch (c) {
+		case 0:
+			if (strcmp(opts[opt_index].name,
+				"punch-holes") == 0) {
+				opt_punch_holes = 1;
+			} else
+				usage(1);
+			break;
+
 		case 'a':
 			opt_malloc++;
 			break;
@@ -1043,6 +1080,13 @@ int main(int argc, char *argv[])
 		default:
 			usage(1);
 		}
+	}
+
+	if (opt_punch_holes && opt_malloc) {
+		fprintf(stderr,
+			"%s: malloc options ignored for punch-holes\n",
+			ourname);
+		opt_malloc = 0;
 	}
 
 	if (opt_malloc) {
