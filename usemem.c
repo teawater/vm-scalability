@@ -66,7 +66,7 @@
 #endif
 
 char *ourname;
-int pagesize;
+unsigned long pagesize;
 unsigned long done_bytes = 0;
 unsigned long opt_bytes = 0;
 unsigned long unit = 0;
@@ -193,7 +193,7 @@ static const struct option opts[] = {
 	{ "delay"	, 1, NULL, 'e' },
 	{ "hugetlb"	, 0, NULL, 'U' },
 	{ "read-again"	, 0, NULL, 'Z' },
-	{ "punch-holes", 0, NULL, 0 },
+	{ "punch-holes" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -666,7 +666,7 @@ static void do_punch_holes(void *addr, unsigned long len)
 		if (madvise(addr + offset, pagesize,
 			MADV_DONTNEED) != 0) {
 			fprintf(stderr,
-				"madvise failed with error %s\n",
+				"madvise MADV_DONTNEED failed: %s\n",
 				strerror(errno));
 			exit(1);
 		}
@@ -943,8 +943,7 @@ int main(int argc, char *argv[])
 		{
 		switch (c) {
 		case 0:
-			if (strcmp(opts[opt_index].name,
-				"punch-holes") == 0) {
+			if (strcmp(opts[opt_index].name, "punch-holes") == 0) {
 				opt_punch_holes = 1;
 			} else
 				usage(1);
