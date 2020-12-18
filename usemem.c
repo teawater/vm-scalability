@@ -97,6 +97,7 @@ unsigned long opt_delay = 0;
 int opt_read_again = 0;
 int opt_punch_holes = 0;
 int opt_init_time = 0;
+int opt_touch_alloc = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -157,6 +158,7 @@ void usage(int ok)
 	"    -Z|--read-again     read memory again after access the memory\n"
 	"    --punch-holes       free every other page after allocation\n"
 	"    --init-time         account/show initialization time separately from run time\n"
+	"    --touch-alloc       read memory after allocate it\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -197,6 +199,7 @@ static const struct option opts[] = {
 	{ "read-again"	, 0, NULL, 'Z' },
 	{ "punch-holes"	, 0, NULL,   0 },
 	{ "init-time"	, 0, NULL,   0 },
+	{ "touch-alloc"	, 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -323,6 +326,18 @@ void detach(void)
 	if (pid) { /* parent */
 		update_pid_file(pid);
 		exit(0);
+	}
+}
+
+unsigned long do_access(unsigned long *p, unsigned long idx, int read)
+{
+	volatile unsigned long *vp = p;
+
+	if (read)
+		return vp[idx];	/* read data */
+	else {
+		vp[idx] = idx;	/* write data */
+		return 0;
 	}
 }
 
