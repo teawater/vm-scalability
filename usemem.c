@@ -96,6 +96,7 @@ int opt_bind_interval = 0;
 unsigned long opt_delay = 0;
 int opt_read_again = 0;
 int opt_punch_holes = 0;
+int opt_init_time = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -155,6 +156,7 @@ void usage(int ok)
 	"    -U|--hugetlb        allocate hugetlbfs page\n"
 	"    -Z|--read-again     read memory again after access the memory\n"
 	"    --punch-holes       free every other page after allocation\n"
+	"    --init-time         account/show initialization time separately from run time\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -193,7 +195,8 @@ static const struct option opts[] = {
 	{ "delay"	, 1, NULL, 'e' },
 	{ "hugetlb"	, 0, NULL, 'U' },
 	{ "read-again"	, 0, NULL, 'Z' },
-	{ "punch-holes" , 0, NULL,   0 },
+	{ "punch-holes"	, 0, NULL,   0 },
+	{ "init-time"	, 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -945,6 +948,8 @@ int main(int argc, char *argv[])
 		case 0:
 			if (strcmp(opts[opt_index].name, "punch-holes") == 0) {
 				opt_punch_holes = 1;
+			} else if (strcmp(opts[opt_index].name, "init-time") == 0) {
+				opt_init_time = 1;
 			} else
 				usage(1);
 			break;
@@ -1128,7 +1133,7 @@ int main(int argc, char *argv[])
 	if (optind != argc - 1)
 		usage(0);
 
-	if (!opt_write_signal_read)
+	if (!opt_write_signal_read || opt_init_time)
 		gettimeofday(&start_time, NULL);
 
 	opt_bytes = memparse(argv[optind], NULL);
@@ -1262,6 +1267,26 @@ int main(int argc, char *argv[])
 
 	if (!nr_task)
 		nr_task = 1;
+
+	if (opt_init_time) {
+		struct timeval stop;
+		char buf[1024];
+		size_t len;
+		unsigned long delta_us;
+
+		gettimeofday(&stop, NULL);
+		delta_us = (stop.tv_sec - start_time.tv_sec) * 1000000 +
+			(stop.tv_usec - start_time.tv_usec);
+		len = snprintf(buf, sizeof(buf),
+			"the initialization time is %lu secs %lu usecs\n",
+			delta_us / 1000000, delta_us % 1000000);
+		fflush(stdout);
+		if (write(1, buf, len) != len)
+			fprintf(stderr, "WARNING: statistics output may be incomplete.\n");
+
+		if (!opt_write_signal_read)
+			gettimeofday(&start_time, NULL);
+	}
 
 	return do_tasks();
 }
