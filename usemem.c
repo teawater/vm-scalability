@@ -329,18 +329,6 @@ void detach(void)
 	}
 }
 
-unsigned long do_access(unsigned long *p, unsigned long idx, int read)
-{
-	volatile unsigned long *vp = p;
-
-	if (read)
-		return vp[idx];	/* read data */
-	else {
-		vp[idx] = idx;	/* write data */
-		return 0;
-	}
-}
-
 unsigned long * allocate(unsigned long bytes)
 {
 	unsigned long *p;
