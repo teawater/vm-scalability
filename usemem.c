@@ -329,6 +329,18 @@ void detach(void)
 	}
 }
 
+unsigned long do_access(unsigned long *p, unsigned long idx, int read)
+{
+	volatile unsigned long *vp = p;
+
+	if (read)
+		return vp[idx];	/* read data */
+	else {
+		vp[idx] = idx;	/* write data */
+		return 0;
+	}
+}
+
 unsigned long * allocate(unsigned long bytes)
 {
 	unsigned long *p;
@@ -353,6 +365,14 @@ unsigned long * allocate(unsigned long bytes)
 			exit(1);
 		}
 		p = (unsigned long *)ALIGN((unsigned long)p, pagesize - 1);
+	}
+
+	if (opt_touch_alloc) {
+		unsigned long i;
+		unsigned long m = bytes / sizeof(*p);
+
+		for (i = 0; i < m; i += 1)
+			do_access(p, i, 0);
 	}
 
 	return p;
@@ -434,18 +454,6 @@ void shm_unlock(int seg_id)
 
 	/* Unlock shared memory segment */
 	shmctl(seg_id, SHM_UNLOCK, NULL);
-}
-
-unsigned long do_access(unsigned long *p, unsigned long idx, int read)
-{
-	volatile unsigned long *vp = p;
-
-	if (read)
-		return vp[idx];	/* read data */
-	else {
-		vp[idx] = idx;	/* write data */
-		return 0;
-	}
 }
 
 #define NSEC_PER_SEC  (1UL * 1000 * 1000 * 1000)
@@ -953,6 +961,8 @@ int main(int argc, char *argv[])
 				opt_punch_holes = 1;
 			} else if (strcmp(opts[opt_index].name, "init-time") == 0) {
 				opt_init_time = 1;
+			} else if (strcmp(opts[opt_index].name, "touch-alloc") == 0) {
+				opt_touch_alloc = 1;
 			} else
 				usage(1);
 			break;
