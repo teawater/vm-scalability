@@ -791,6 +791,8 @@ long do_units(void)
 			for (i = 0; i < nptr; i++)
 				do_punch_holes(ptrs[i], lens[i]);
 		}
+		printf("punch holes done\n");
+		fflush(stdout);
 	}
 
 	while (sleep_secs)
