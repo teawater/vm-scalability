@@ -158,7 +158,7 @@ void usage(int ok)
 	"    -Z|--read-again     read memory again after access the memory\n"
 	"    --punch-holes       free every other page after allocation\n"
 	"    --init-time         account/show initialization time separately from run time\n"
-	"    --touch-alloc       read memory after allocate it\n"
+	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
