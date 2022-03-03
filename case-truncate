@@ -8,7 +8,7 @@
 for i in `seq $nr_task`
 do
 	create_sparse_file $SPARSE_FILE-$i $((mem / nr_task))
-	cp $SPARSE_FILE-$i /dev/null
+	cat $SPARSE_FILE-$i > /dev/null
 done
 
 t0=$(date +%s.%N)
