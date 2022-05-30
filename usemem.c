@@ -800,6 +800,8 @@ long do_units(void)
 
 	if (opt_write_signal_read) {
 		sigset_t set;
+		printf("Process %d is waiting signal\n", getpid());
+		fflush(stdout);
 		sigfillset(&set);
 		sigdelset(&set, SIGUSR1);
 		sigsuspend(&set);
