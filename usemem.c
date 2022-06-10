@@ -99,6 +99,7 @@ int opt_punch_holes = 0;
 int opt_init_time = 0;
 int opt_touch_alloc = 0;
 int opt_signal_read_count = 0;
+int opt_signal_read_random = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -152,6 +153,7 @@ void usage(int ok)
 	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
 	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
 	"    --signal-read-count COUNT set the read count of signal read\n"
+	"    --signal-read-random random access pattern when do signal read\n"
 	"    -y|--sync-rw        sync between tasks after allocate memory\n"
 	"    -x|--sync-free      sync between tasks before free memory\n"
 	"    -e|--delay          delay for each page in ns\n"
@@ -203,6 +205,7 @@ static const struct option opts[] = {
 	{ "init-time"	, 0, NULL,   0 },
 	{ "touch-alloc"	, 0, NULL,   0 },
 	{ "signal-read-count", 1, NULL,   0 },
+	{ "signal-read-random", 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -491,18 +494,22 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 	unsigned long prev_addr = 0;
 	unsigned long addr;
 	unsigned long rw_limit = 0;
+	int is_random = 0;
 
 	if (from_signal_read)
 		rw_limit = opt_signal_read_count;
 
+	if (opt_randomise || (from_signal_read && opt_signal_read_random))
+		is_random = 1;
+
 	for (i = 0; i < m; i += step / sizeof(*p)) {
 		unsigned long idx = i;
 
-		if (opt_randomise)
+		if (is_random)
 			idx = os_random_long(m - 1, rand_data);
 
 		/* verify last write */
-		if (rep && *rep && !read && !opt_randomise && p[idx] != idx) {
+		if (rep && *rep && !read && !is_random && p[idx] != idx) {
 			fprintf(stderr, "Data wrong at offset 0x%lx. "
 					"Expected 0x%08lx, got 0x%08lx\n",
 					idx * sizeof(*p), idx, p[idx]);
@@ -713,7 +720,7 @@ long do_units(void)
 	int i;
 
 	/* Base the random seed on the thread ID for multithreaded tests */
-	if (opt_randomise)
+	if (opt_randomise || opt_signal_read_random)
 		os_random_seed(time(0) ^ syscall(SYS_gettid), &rand_data);
 
 	if (!unit)
@@ -983,6 +990,8 @@ int main(int argc, char *argv[])
 				opt_touch_alloc = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-read-count") == 0) {
 				opt_signal_read_count = strtol(optarg, NULL, 10);
+			} else if (strcmp(opts[opt_index].name, "signal-read-random") == 0) {
+				opt_signal_read_random = 1;
 			} else
 				usage(1);
 			break;
