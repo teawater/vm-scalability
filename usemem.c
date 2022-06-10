@@ -98,6 +98,7 @@ int opt_read_again = 0;
 int opt_punch_holes = 0;
 int opt_init_time = 0;
 int opt_touch_alloc = 0;
+int opt_signal_read_count = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -150,6 +151,7 @@ void usage(int ok)
 	"    -N|--mincore        get information about pages in memory\n"
 	"    -H|--mincore-hgpg   get information abt hugepages in memory\n"
 	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
+	"    --signal-read-count COUNT set the read count of signal read\n"
 	"    -y|--sync-rw        sync between tasks after allocate memory\n"
 	"    -x|--sync-free      sync between tasks before free memory\n"
 	"    -e|--delay          delay for each page in ns\n"
@@ -200,6 +202,7 @@ static const struct option opts[] = {
 	{ "punch-holes"	, 0, NULL,   0 },
 	{ "init-time"	, 0, NULL,   0 },
 	{ "touch-alloc"	, 0, NULL,   0 },
+	{ "signal-read-count", 1, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -479,13 +482,18 @@ void delay(unsigned long delay, unsigned long *p, unsigned long idx, int read)
 
 static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 				struct drand48_data *rand_data, int read,
-				int *rep, int opt_repeat)
+				int *rep, int opt_repeat,
+				int from_signal_read)
 {
 	unsigned long i;
 	unsigned long m = bytes / sizeof(*p);
 	unsigned long rw_bytes = 0;
 	unsigned long prev_addr = 0;
 	unsigned long addr;
+	unsigned long rw_limit = 0;
+
+	if (from_signal_read)
+		rw_limit = opt_signal_read_count;
 
 	for (i = 0; i < m; i += step / sizeof(*p)) {
 		unsigned long idx = i;
@@ -516,6 +524,12 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 			if (rep)
 				*rep = opt_repeat;
 			break;
+		}
+
+		if (rw_limit) {
+			rw_limit--;
+			if (rw_limit == 0)
+				break;
 		}
 	}
 
@@ -573,7 +587,7 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 			fflush(stdout);
 		}
 
-		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep, opt_repeat);
+		rw_bytes += do_rw_once(p, bytes, rand_data, opt_readonly, &rep, opt_repeat, 0);
 
 		if (msync_mode) {
 			if ((msync(p, bytes, msync_mode)) == -1) {
@@ -741,7 +755,7 @@ long do_units(void)
 					fflush(stdout);
 				}
 
-				rw_bytes += do_rw_once(ptrs[i], lens[i], &rand_data, 1, &rep, opt_repeat);
+				rw_bytes += do_rw_once(ptrs[i], lens[i], &rand_data, 1, &rep, opt_repeat, 0);
 
 				if (msync_mode) {
 					if ((msync(ptrs[i], lens[i], msync_mode)) == -1) {
@@ -806,7 +820,7 @@ long do_units(void)
 		sigdelset(&set, SIGUSR1);
 		sigsuspend(&set);
 		gettimeofday(&start_time, NULL);
-		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0);
+		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0, 1);
 		output_statistics(unit_bytes, "");
 	}
 
@@ -967,6 +981,8 @@ int main(int argc, char *argv[])
 				opt_init_time = 1;
 			} else if (strcmp(opts[opt_index].name, "touch-alloc") == 0) {
 				opt_touch_alloc = 1;
+			} else if (strcmp(opts[opt_index].name, "signal-read-count") == 0) {
+				opt_signal_read_count = strtol(optarg, NULL, 10);
 			} else
 				usage(1);
 			break;
@@ -1142,6 +1158,13 @@ int main(int argc, char *argv[])
 				ourname, opt_bind_interval, nr_cpu);
 			exit(1);
 		}
+	}
+
+	if (opt_signal_read_count != 0 && !opt_write_signal_read) {
+		fprintf(stderr,
+			"%s: --signal-read-count should use with --write-signal-read\n",
+			ourname);
+		exit(1);
 	}
 
 	if (step < sizeof(long))
