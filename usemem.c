@@ -100,6 +100,7 @@ int opt_init_time = 0;
 int opt_touch_alloc = 0;
 int opt_signal_read_count = 0;
 int opt_signal_read_random = 0;
+unsigned long opt_random_seed = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -137,6 +138,7 @@ void usage(int ok)
 	"    -o|--readonly       readonly access\n"
 	"    -w|--open-rw        open() and mmap() file in RW mode\n"
 	"    -R|--random         random access pattern\n"
+	"    --random-seed SEED  set random seed\n"
 	"    -M|--mlock          mlock() the memory\n"
 	"    -S|--msync          msync(MS_SYNC) the memory\n"
 	"    -A|--msync-async    msync(MS_ASYNC) the memory\n"
@@ -206,6 +208,7 @@ static const struct option opts[] = {
 	{ "touch-alloc"	, 0, NULL,   0 },
 	{ "signal-read-count", 1, NULL,   0 },
 	{ "signal-read-random", 0, NULL,   0 },
+	{ "random-seed" , 1, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -720,8 +723,11 @@ long do_units(void)
 	int i;
 
 	/* Base the random seed on the thread ID for multithreaded tests */
-	if (opt_randomise || opt_signal_read_random)
-		os_random_seed(time(0) ^ syscall(SYS_gettid), &rand_data);
+	if (opt_randomise || opt_signal_read_random) {
+		if (!opt_random_seed)
+			opt_random_seed = time(0) ^ syscall(SYS_gettid);
+		os_random_seed(opt_random_seed, &rand_data);
+	}
 
 	if (!unit)
 		unit = bytes;
@@ -992,6 +998,8 @@ int main(int argc, char *argv[])
 				opt_signal_read_count = strtol(optarg, NULL, 10);
 			} else if (strcmp(opts[opt_index].name, "signal-read-random") == 0) {
 				opt_signal_read_random = 1;
+			} else if (strcmp(opts[opt_index].name, "random-seed") == 0) {
+				opt_random_seed = strtol(optarg, NULL, 10);
 			} else
 				usage(1);
 			break;
