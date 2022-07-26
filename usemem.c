@@ -822,9 +822,6 @@ long do_units(void)
 		fflush(stdout);
 	}
 
-	while (sleep_secs)
-		sleep_secs = sleep(sleep_secs);
-
 	if (opt_write_signal_read) {
 		sigset_t set;
 		printf("Process %d is waiting signal\n", getpid());
@@ -836,6 +833,9 @@ long do_units(void)
 		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0, 1);
 		output_statistics(unit_bytes, "");
 	}
+
+	while (sleep_secs)
+		sleep_secs = sleep(sleep_secs);
 
 	if (opt_sync_free)
 		ready(free_ready_fds, free_wake_fds);
