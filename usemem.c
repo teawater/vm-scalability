@@ -1030,7 +1030,7 @@ int main(int argc, char *argv[])
 			} else if (strcmp(opts[opt_index].name, "random-seed") == 0) {
 				opt_random_seed = strtol(optarg, NULL, 10);
 			} else if (strcmp(opts[opt_index].name, "main-write-data") == 0) {
-				opt_main_write_data = strtol(optarg, NULL, 0);
+				opt_main_write_data = strtoul(optarg, NULL, 0);
 			} else if (strcmp(opts[opt_index].name, "write-signal-write") == 0) {
 				opt_write_signal_write = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-write-times") == 0) {
