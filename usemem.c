@@ -168,7 +168,7 @@ void usage(int ok)
 	"    --punch-holes       free every other page after allocation\n"
 	"    --init-time         account/show initialization time separately from run time\n"
 	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
-	"    --main-write-data=data Replace index with data when write in main mission\n"
+	"    --main-write-data DATA Replace index with data when write in main mission\n"
 	"    --write-signal-write do write first, then wait for signal to resume and do write again\n"
 	"    --signal-write-times TIMES set the write times of signal write\n"
 	"    -h|--help           show this message\n"
