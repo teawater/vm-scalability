@@ -101,6 +101,7 @@ int opt_touch_alloc = 0;
 int opt_signal_read_count = 0;
 int opt_signal_read_random = 0;
 unsigned long opt_random_seed = 0;
+unsigned long opt_main_write_data = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -165,6 +166,7 @@ void usage(int ok)
 	"    --punch-holes       free every other page after allocation\n"
 	"    --init-time         account/show initialization time separately from run time\n"
 	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
+	"    --main-write-data=data Replace index with data when write in main mission\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -209,6 +211,7 @@ static const struct option opts[] = {
 	{ "signal-read-count", 1, NULL,   0 },
 	{ "signal-read-random", 0, NULL,   0 },
 	{ "random-seed" , 1, NULL,   0 },
+	{ "main-write-data" , 1, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -338,14 +341,15 @@ void detach(void)
 	}
 }
 
-unsigned long do_access(unsigned long *p, unsigned long idx, int read)
+unsigned long do_access(unsigned long *p, unsigned long idx, int read,
+			unsigned long data)
 {
 	volatile unsigned long *vp = p;
 
 	if (read)
 		return vp[idx];	/* read data */
 	else {
-		vp[idx] = idx;	/* write data */
+		vp[idx] = data;	/* write data */
 		return 0;
 	}
 }
@@ -381,7 +385,7 @@ unsigned long * allocate(unsigned long bytes)
 		unsigned long m = bytes / sizeof(*p);
 
 		for (i = 0; i < m; i += 1)
-			do_access(p, i, 0);
+			do_access(p, i, 0, i);
 	}
 
 	return p;
@@ -481,7 +485,7 @@ void delay(unsigned long delay, unsigned long *p, unsigned long idx, int read)
 
 	clock_gettime(CLOCK_REALTIME, &start);
 	do {
-		do_access(p, idx, read);
+		do_access(p, idx, read, idx);
 		clock_gettime(CLOCK_REALTIME, &now);
 	} while (nsec_sub(now.tv_nsec, start.tv_nsec) < delay);
 }
@@ -507,6 +511,7 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 
 	for (i = 0; i < m; i += step / sizeof(*p)) {
 		unsigned long idx = i;
+		unsigned long data;
 
 		if (is_random)
 			idx = os_random_long(m - 1, rand_data);
@@ -520,7 +525,11 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 		}
 
 		/* read / write */
-		do_access(p, idx, read);
+		if (!from_signal_read && opt_main_write_data)
+			data = opt_main_write_data;
+		else
+			data = idx;
+		do_access(p, idx, read, data);
 
 		rw_bytes += sizeof(*p);
 
@@ -1000,6 +1009,8 @@ int main(int argc, char *argv[])
 				opt_signal_read_random = 1;
 			} else if (strcmp(opts[opt_index].name, "random-seed") == 0) {
 				opt_random_seed = strtol(optarg, NULL, 10);
+			} else if (strcmp(opts[opt_index].name, "main-write-data") == 0) {
+				opt_main_write_data = strtol(optarg, NULL, 0);
 			} else
 				usage(1);
 			break;
