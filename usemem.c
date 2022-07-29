@@ -851,13 +851,13 @@ long do_units(void)
 			int rep;
 
 			unit_bytes = 0;
-			for (rep = 0; rep < opt_repeat; rep++) {
+			for (rep = 0; rep < opt_signal_write_times; rep++) {
 				if (rep > 0 && !quiet) {
 					printf(".");
 					fflush(stdout);
 				}
 
-				unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, opt_readonly, &rep, opt_repeat, 1);
+				unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, 0, &rep, opt_repeat, 1);
 			}
 		}
 		output_statistics(unit_bytes, "");
