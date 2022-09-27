@@ -92,6 +92,7 @@ int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
 int opt_write_signal_write = 0;
 int opt_signal_write_times = 1;
+int opt_show_addr = 0;
 int opt_sync_rw = 0;
 int opt_sync_free = 0;
 int opt_bind_interval = 0;
@@ -171,6 +172,7 @@ void usage(int ok)
 	"    --main-write-data DATA Replace index with data when write in main mission\n"
 	"    --write-signal-write do write first, then wait for signal to resume and do write again\n"
 	"    --signal-write-times TIMES set the write times of signal write\n"
+	"    --show-addr         TIMES set the write times of signal write\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -218,6 +220,7 @@ static const struct option opts[] = {
 	{ "main-write-data" , 1, NULL,   0 },
 	{ "write-signal-write" , 0, NULL,   0 },
 	{ "signal-write-times" , 1, NULL,   0 },
+	{ "show-addr" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -385,6 +388,9 @@ unsigned long * allocate(unsigned long bytes)
 		}
 		p = (unsigned long *)ALIGN((unsigned long)p, pagesize - 1);
 	}
+
+	if (opt_show_addr)
+		printf("%d 0x%lx-0x%lx\n", getpid(), (unsigned long)p, (unsigned long)p + bytes);
 
 	if (opt_touch_alloc) {
 		unsigned long i;
@@ -1035,6 +1041,8 @@ int main(int argc, char *argv[])
 				opt_write_signal_write = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-write-times") == 0) {
 				opt_signal_write_times = strtol(optarg, NULL, 10);
+			} else if (strcmp(opts[opt_index].name, "show-addr") == 0) {
+				opt_show_addr = 1;
 			} else
 				usage(1);
 			break;
