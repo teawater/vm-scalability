@@ -103,6 +103,7 @@ int opt_init_time = 0;
 int opt_touch_alloc = 0;
 int opt_signal_read_count = 0;
 int opt_signal_read_random = 0;
+int opt_signal_verify = 0;
 unsigned long opt_random_seed = 0;
 unsigned long opt_main_write_data = 0;
 int nr_task;
@@ -172,6 +173,7 @@ void usage(int ok)
 	"    --main-write-data DATA Replace index with data when write in main mission\n"
 	"    --write-signal-write do write first, then wait for signal to resume and do write again\n"
 	"    --signal-write-times TIMES set the write times of signal write\n"
+	"    --signal-verify     vetify data when signal read or write\n"
 	"    --show-addr         TIMES set the write times of signal write\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
@@ -220,6 +222,7 @@ static const struct option opts[] = {
 	{ "main-write-data" , 1, NULL,   0 },
 	{ "write-signal-write" , 0, NULL,   0 },
 	{ "signal-write-times" , 1, NULL,   0 },
+	{ "signal-verify" , 0, NULL,   0 },
 	{ "show-addr" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
@@ -529,7 +532,9 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 			idx = os_random_long(m - 1, rand_data);
 
 		/* verify last write */
-		if (rep && *rep && !read && !is_random && p[idx] != idx) {
+		if (((from_signal_read && opt_signal_verify) || 
+		     (rep && *rep && !read && !is_random)) &&
+		    p[idx] != idx) {
 			fprintf(stderr, "Data wrong at offset 0x%lx. "
 					"Expected 0x%08lx, got 0x%08lx\n",
 					idx * sizeof(*p), idx, p[idx]);
@@ -1048,6 +1053,8 @@ int main(int argc, char *argv[])
 				opt_write_signal_write = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-write-times") == 0) {
 				opt_signal_write_times = strtol(optarg, NULL, 10);
+			} else if (strcmp(opts[opt_index].name, "signal-verify") == 0) {
+				opt_signal_verify = 1;
 			} else if (strcmp(opts[opt_index].name, "show-addr") == 0) {
 				opt_show_addr = 1;
 			} else
