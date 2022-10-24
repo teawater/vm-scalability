@@ -843,7 +843,7 @@ long do_units(void)
 		fflush(stdout);
 	}
 
-	if (opt_write_signal_read || opt_write_signal_write) {
+	if (opt_write_signal_read) {
 		sigset_t set;
 		printf("Process %d is waiting signal\n", getpid());
 		fflush(stdout);
@@ -851,20 +851,27 @@ long do_units(void)
 		sigdelset(&set, SIGUSR1);
 		sigsuspend(&set);
 		gettimeofday(&start_time, NULL);
-		if (opt_write_signal_read)
-			unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0, 1);
-		else {
-			int rep;
+		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0, 1);
+		output_statistics(unit_bytes, "");
+	}
 
-			unit_bytes = 0;
-			for (rep = 0; rep < opt_signal_write_times; rep++) {
-				if (rep > 0 && !quiet) {
-					printf(".");
-					fflush(stdout);
-				}
-
-				unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, 0, &rep, opt_repeat, 1);
+	if (opt_write_signal_write) {
+		sigset_t set;
+		int rep;
+		printf("Process %d is waiting signal\n", getpid());
+		fflush(stdout);
+		sigfillset(&set);
+		sigdelset(&set, SIGUSR1);
+		sigsuspend(&set);
+		gettimeofday(&start_time, NULL);
+		unit_bytes = 0;
+		for (rep = 0; rep < opt_signal_write_times; rep++) {
+			if (rep > 0 && !quiet) {
+				printf(".");
+				fflush(stdout);
 			}
+
+			unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, 0, &rep, opt_repeat, 1);
 		}
 		output_statistics(unit_bytes, "");
 	}
