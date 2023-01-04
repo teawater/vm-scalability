@@ -854,7 +854,7 @@ long do_units(void)
 	do {
 		if (opt_write_signal_read) {
 			sigset_t set;
-			printf("Process %d is waiting signal\n", getpid());
+			printf("Read Process %d is waiting signal\n", getpid());
 			fflush(stdout);
 			sigfillset(&set);
 			sigdelset(&set, SIGUSR1);
@@ -867,7 +867,7 @@ long do_units(void)
 		if (opt_write_signal_write) {
 			sigset_t set;
 			int rep;
-			printf("Process %d is waiting signal\n", getpid());
+			printf("Write Process %d is waiting signal\n", getpid());
 			fflush(stdout);
 			sigfillset(&set);
 			sigdelset(&set, SIGUSR1);
