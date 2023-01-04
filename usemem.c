@@ -91,6 +91,7 @@ int opt_mincore = 0;
 int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
 int opt_write_signal_write = 0;
+int opt_signal_loop = 0;
 int opt_signal_write_times = 1;
 int opt_show_addr = 0;
 int opt_sync_rw = 0;
@@ -172,6 +173,7 @@ void usage(int ok)
 	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
 	"    --main-write-data DATA Replace index with data when write in main mission\n"
 	"    --write-signal-write do write first, then wait for signal to resume and do write again\n"
+	"    --signal-loop       loop wait signal and do read or write\n"
 	"    --signal-write-times TIMES set the write times of signal write\n"
 	"    --signal-verify     vetify data when signal read or write\n"
 	"    --show-addr         TIMES set the write times of signal write\n"
@@ -221,6 +223,7 @@ static const struct option opts[] = {
 	{ "random-seed" , 1, NULL,   0 },
 	{ "main-write-data" , 1, NULL,   0 },
 	{ "write-signal-write" , 0, NULL,   0 },
+	{ "signal-loop" , 0, NULL,   0 },
 	{ "signal-write-times" , 1, NULL,   0 },
 	{ "signal-verify" , 0, NULL,   0 },
 	{ "show-addr" , 0, NULL,   0 },
@@ -848,38 +851,40 @@ long do_units(void)
 		fflush(stdout);
 	}
 
-	if (opt_write_signal_read) {
-		sigset_t set;
-		printf("Process %d is waiting signal\n", getpid());
-		fflush(stdout);
-		sigfillset(&set);
-		sigdelset(&set, SIGUSR1);
-		sigsuspend(&set);
-		gettimeofday(&start_time, NULL);
-		unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0, 1);
-		output_statistics(unit_bytes, "");
-	}
-
-	if (opt_write_signal_write) {
-		sigset_t set;
-		int rep;
-		printf("Process %d is waiting signal\n", getpid());
-		fflush(stdout);
-		sigfillset(&set);
-		sigdelset(&set, SIGUSR1);
-		sigsuspend(&set);
-		gettimeofday(&start_time, NULL);
-		unit_bytes = 0;
-		for (rep = 0; rep < opt_signal_write_times; rep++) {
-			if (rep > 0 && !quiet) {
-				printf(".");
-				fflush(stdout);
-			}
-
-			unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, 0, &rep, opt_repeat, 1);
+	do {
+		if (opt_write_signal_read) {
+			sigset_t set;
+			printf("Process %d is waiting signal\n", getpid());
+			fflush(stdout);
+			sigfillset(&set);
+			sigdelset(&set, SIGUSR1);
+			sigsuspend(&set);
+			gettimeofday(&start_time, NULL);
+			unit_bytes = do_rw_once(buffer, opt_bytes, &rand_data, 1, NULL, 0, 1);
+			output_statistics(unit_bytes, "");
 		}
-		output_statistics(unit_bytes, "");
-	}
+
+		if (opt_write_signal_write) {
+			sigset_t set;
+			int rep;
+			printf("Process %d is waiting signal\n", getpid());
+			fflush(stdout);
+			sigfillset(&set);
+			sigdelset(&set, SIGUSR1);
+			sigsuspend(&set);
+			gettimeofday(&start_time, NULL);
+			unit_bytes = 0;
+			for (rep = 0; rep < opt_signal_write_times; rep++) {
+				if (rep > 0 && !quiet) {
+					printf(".");
+					fflush(stdout);
+				}
+
+				unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, 0, &rep, opt_repeat, 1);
+			}
+			output_statistics(unit_bytes, "");
+		}
+	} while (opt_signal_loop);
 
 	while (sleep_secs)
 		sleep_secs = sleep(sleep_secs);
@@ -1051,6 +1056,8 @@ int main(int argc, char *argv[])
 				opt_main_write_data = strtoul(optarg, NULL, 0);
 			} else if (strcmp(opts[opt_index].name, "write-signal-write") == 0) {
 				opt_write_signal_write = 1;
+			} else if (strcmp(opts[opt_index].name, "signal-loop") == 0) {
+				opt_signal_loop = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-write-times") == 0) {
 				opt_signal_write_times = strtol(optarg, NULL, 10);
 			} else if (strcmp(opts[opt_index].name, "signal-verify") == 0) {
