@@ -94,6 +94,7 @@ int opt_write_signal_write = 0;
 int opt_signal_loop = 0;
 int opt_signal_write_times = 1;
 int opt_show_addr = 0;
+int opt_signal_fork = 0;
 int opt_sync_rw = 0;
 int opt_sync_free = 0;
 int opt_bind_interval = 0;
@@ -177,6 +178,7 @@ void usage(int ok)
 	"    --signal-write-times TIMES set the write times of signal write\n"
 	"    --signal-verify     vetify data when signal read or write\n"
 	"    --show-addr         TIMES set the write times of signal write\n"
+	"    --signal-fork       wait signal before fork\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -227,6 +229,7 @@ static const struct option opts[] = {
 	{ "signal-write-times" , 1, NULL,   0 },
 	{ "signal-verify" , 0, NULL,   0 },
 	{ "show-addr" , 0, NULL,   0 },
+	{ "signal-fork" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -1064,6 +1067,8 @@ int main(int argc, char *argv[])
 				opt_signal_verify = 1;
 			} else if (strcmp(opts[opt_index].name, "show-addr") == 0) {
 				opt_show_addr = 1;
+			} else if (strcmp(opts[opt_index].name, "signal-fork") == 0) {
+				opt_signal_fork = 1;
 			} else
 				usage(1);
 			break;
@@ -1407,6 +1412,24 @@ int main(int argc, char *argv[])
 
 		if (!opt_write_signal_read)
 			gettimeofday(&start_time, NULL);
+	}
+
+	if (opt_signal_fork) {
+		struct sigaction act;
+		sigset_t set;
+
+		memset(&act, 0, sizeof(act));
+		act.sa_handler = wait_for_sigusr1;
+		if (sigaction(SIGUSR1, &act, NULL) == -1) {
+			perror("sigaction");
+			exit(-1);
+		}
+
+		printf("Main Process %d is waiting signal\n", getpid());
+		fflush(stdout);
+		sigfillset(&set);
+		sigdelset(&set, SIGUSR1);
+		sigsuspend(&set);
 	}
 
 	return do_tasks();
