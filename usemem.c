@@ -108,6 +108,7 @@ int opt_signal_read_random = 0;
 int opt_signal_verify = 0;
 unsigned long opt_random_seed = 0;
 unsigned long opt_main_write_data = 0;
+int opt_memfd = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -179,6 +180,7 @@ void usage(int ok)
 	"    --signal-verify     vetify data when signal read or write\n"
 	"    --show-addr         TIMES set the write times of signal write\n"
 	"    --signal-fork       wait signal before fork\n"
+	"    --memfd             use memfd\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -230,6 +232,7 @@ static const struct option opts[] = {
 	{ "signal-verify" , 0, NULL,   0 },
 	{ "show-addr" , 0, NULL,   0 },
 	{ "signal-fork" , 0, NULL,   0 },
+	{ "memfd" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -1069,6 +1072,8 @@ int main(int argc, char *argv[])
 				opt_show_addr = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-fork") == 0) {
 				opt_signal_fork = 1;
+			} else if (strcmp(opts[opt_index].name, "memfd") == 0) {
+				opt_memfd = 1;
 			} else
 				usage(1);
 			break;
@@ -1270,9 +1275,14 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (!opt_malloc)
-		fd = open(filename, ((opt_readonly && !opt_openrw) ?
-			  O_RDONLY : O_RDWR) | O_CREAT, 0666);
+	if (!opt_malloc) {
+		if (opt_memfd) {
+			fd = syscall(__NR_memfd_create, filename, 0);
+			ftruncate(fd, opt_bytes);
+		} else
+			fd = open(filename, ((opt_readonly && !opt_openrw) ?
+				  O_RDONLY : O_RDWR) | O_CREAT, 0666);
+	}
 	if (fd < 0) {
 		fprintf(stderr, "%s: failed to open `%s': %s\n",
 			ourname, filename, strerror(errno));
