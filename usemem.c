@@ -101,6 +101,7 @@ int opt_bind_interval = 0;
 unsigned long opt_delay = 0;
 int opt_read_again = 0;
 int opt_punch_holes = 0;
+int opt_punch_holes_signal = 0;
 int opt_init_time = 0;
 int opt_touch_alloc = 0;
 int opt_signal_read_count = 0;
@@ -171,6 +172,7 @@ void usage(int ok)
 	"    -U|--hugetlb        allocate hugetlbfs page\n"
 	"    -Z|--read-again     read memory again after access the memory\n"
 	"    --punch-holes       free every other page after allocation\n"
+	"    --signal-punch-holes wait signal before punch-holes\n"
 	"    --init-time         account/show initialization time separately from run time\n"
 	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
 	"    --main-write-data DATA Replace index with data when write in main mission\n"
@@ -220,6 +222,7 @@ static const struct option opts[] = {
 	{ "hugetlb"	, 0, NULL, 'U' },
 	{ "read-again"	, 0, NULL, 'Z' },
 	{ "punch-holes"	, 0, NULL,   0 },
+	{ "signal-punch-holes"	, 0, NULL,   0 },
 	{ "init-time"	, 0, NULL,   0 },
 	{ "touch-alloc"	, 0, NULL,   0 },
 	{ "signal-read-count", 1, NULL,   0 },
@@ -817,7 +820,8 @@ long do_units(void)
 		output_statistics(rw_bytes, "read again ");
 	}
 
-	if (opt_write_signal_read || opt_write_signal_write) {
+	if (opt_write_signal_read || opt_write_signal_write ||
+	    opt_punch_holes_signal) {
 		struct sigaction act;
 		memset(&act, 0, sizeof(act));
 		act.sa_handler = wait_for_sigusr1;
@@ -847,6 +851,14 @@ long do_units(void)
 	}
 
 	if (opt_punch_holes) {
+		if (opt_punch_holes_signal) {
+			sigset_t set;
+			printf("Punch holes Process %d is waiting signal\n", getpid());
+			fflush(stdout);
+			sigfillset(&set);
+			sigdelset(&set, SIGUSR1);
+			sigsuspend(&set);
+		}
 		if (prealloc)
 			do_punch_holes(prealloc, opt_bytes);
 		else {
@@ -1048,6 +1060,8 @@ int main(int argc, char *argv[])
 		case 0:
 			if (strcmp(opts[opt_index].name, "punch-holes") == 0) {
 				opt_punch_holes = 1;
+			} else if (strcmp(opts[opt_index].name, "signal-punch-holes") == 0) {
+				opt_punch_holes_signal = 1;
 			} else if (strcmp(opts[opt_index].name, "init-time") == 0) {
 				opt_init_time = 1;
 			} else if (strcmp(opts[opt_index].name, "touch-alloc") == 0) {
