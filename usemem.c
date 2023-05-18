@@ -102,6 +102,7 @@ unsigned long opt_delay = 0;
 int opt_read_again = 0;
 int opt_punch_holes = 0;
 int opt_punch_holes_signal = 0;
+int opt_punch_holes_fallocate = 0;
 int opt_init_time = 0;
 int opt_touch_alloc = 0;
 int opt_signal_read_count = 0;
@@ -173,6 +174,7 @@ void usage(int ok)
 	"    -Z|--read-again     read memory again after access the memory\n"
 	"    --punch-holes       free every other page after allocation\n"
 	"    --signal-punch-holes wait signal before punch-holes\n"
+	"    --fallocate-punch-holes use fallocate FALLOC_FL_PUNCH_HOLE to punch-holes\n"
 	"    --init-time         account/show initialization time separately from run time\n"
 	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
 	"    --main-write-data DATA Replace index with data when write in main mission\n"
@@ -223,6 +225,7 @@ static const struct option opts[] = {
 	{ "read-again"	, 0, NULL, 'Z' },
 	{ "punch-holes"	, 0, NULL,   0 },
 	{ "signal-punch-holes"	, 0, NULL,   0 },
+	{ "fallocate-punch-holes", 0, NULL,   0 },
 	{ "init-time"	, 0, NULL,   0 },
 	{ "touch-alloc"	, 0, NULL,   0 },
 	{ "signal-read-count", 1, NULL,   0 },
@@ -739,12 +742,23 @@ static void do_punch_holes(void *addr, unsigned long len)
 	unsigned long offset;
 
 	for (offset = 0; offset + 2 * pagesize <= len; offset += 2 * pagesize) {
-		if (madvise(addr + offset, pagesize,
-			MADV_DONTNEED) != 0) {
-			fprintf(stderr,
-				"madvise MADV_DONTNEED failed: %s\n",
-				strerror(errno));
-			exit(1);
+		if (opt_punch_holes_fallocate) {
+			if (fallocate(fd,
+				      FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+				      offset, pagesize) != 0) {
+				fprintf(stderr,
+					"fallocate FALLOC_FL_PUNCH_HOLE failed: %s\n",
+					strerror(errno));
+				exit(1);
+			}
+		} else {
+			if (madvise(addr + offset, pagesize,
+				MADV_DONTNEED) != 0) {
+				fprintf(stderr,
+					"madvise MADV_DONTNEED failed: %s\n",
+					strerror(errno));
+				exit(1);
+			}
 		}
 	}
 }
@@ -1062,6 +1076,8 @@ int main(int argc, char *argv[])
 				opt_punch_holes = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-punch-holes") == 0) {
 				opt_punch_holes_signal = 1;
+			} else if (strcmp(opts[opt_index].name, "fallocate-punch-holes") == 0) {
+				opt_punch_holes_fallocate = 1;
 			} else if (strcmp(opts[opt_index].name, "init-time") == 0) {
 				opt_init_time = 1;
 			} else if (strcmp(opts[opt_index].name, "touch-alloc") == 0) {
