@@ -110,6 +110,7 @@ int opt_signal_read_random = 0;
 int opt_signal_verify = 0;
 unsigned long opt_random_seed = 0;
 unsigned long opt_main_write_data = 0;
+unsigned long opt_signal_write_data = 0;
 int opt_memfd = 0;
 int nr_task;
 int nr_thread;
@@ -166,6 +167,7 @@ void usage(int ok)
 	"    -W|--write-signal-read do write first, then wait for signal to resume and do read\n"
 	"    --signal-read-count COUNT set the read count of signal read\n"
 	"    --signal-read-random random access pattern when do signal read\n"
+	"    --signal-write-data DATA Replace index with data when write in signal mission\n"
 	"    -y|--sync-rw        sync between tasks after allocate memory\n"
 	"    -x|--sync-free      sync between tasks before free memory\n"
 	"    -e|--delay          delay for each page in ns\n"
@@ -230,6 +232,7 @@ static const struct option opts[] = {
 	{ "touch-alloc"	, 0, NULL,   0 },
 	{ "signal-read-count", 1, NULL,   0 },
 	{ "signal-read-random", 0, NULL,   0 },
+	{ "signal-write-data" , 1, NULL,   0 },
 	{ "random-seed" , 1, NULL,   0 },
 	{ "main-write-data" , 1, NULL,   0 },
 	{ "write-signal-write" , 0, NULL,   0 },
@@ -559,6 +562,8 @@ static unsigned long do_rw_once(unsigned long *p, unsigned long bytes,
 		/* read / write */
 		if (!from_signal_read && opt_main_write_data)
 			data = opt_main_write_data;
+		else if (from_signal_read && opt_signal_write_data)
+			data = opt_signal_write_data;
 		else
 			data = idx;
 		do_access(p, idx, read, data);
@@ -1098,6 +1103,8 @@ int main(int argc, char *argv[])
 				opt_signal_write_times = strtol(optarg, NULL, 10);
 			} else if (strcmp(opts[opt_index].name, "signal-verify") == 0) {
 				opt_signal_verify = 1;
+			} else if (strcmp(opts[opt_index].name, "signal-write-data") == 0) {
+				opt_signal_write_data = strtoul(optarg, NULL, 0);
 			} else if (strcmp(opts[opt_index].name, "show-addr") == 0) {
 				opt_show_addr = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-fork") == 0) {
