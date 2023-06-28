@@ -112,6 +112,7 @@ unsigned long opt_random_seed = 0;
 unsigned long opt_main_write_data = 0;
 unsigned long opt_signal_write_data = 0;
 int opt_memfd = 0;
+int opt_madv_thp = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -187,6 +188,7 @@ void usage(int ok)
 	"    --show-addr         TIMES set the write times of signal write\n"
 	"    --signal-fork       wait signal before fork\n"
 	"    --memfd             use memfd\n"
+	"    --madv-thp          madvise MADV_HUGEPAGE\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -242,6 +244,7 @@ static const struct option opts[] = {
 	{ "show-addr" , 0, NULL,   0 },
 	{ "signal-fork" , 0, NULL,   0 },
 	{ "memfd" , 0, NULL,   0 },
+	{ "madv-thp" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -412,6 +415,15 @@ unsigned long * allocate(unsigned long bytes)
 
 	if (opt_show_addr)
 		printf("%d 0x%lx-0x%lx\n", getpid(), (unsigned long)p, (unsigned long)p + bytes);
+
+	if (opt_madv_thp) {
+		if (madvise(p, bytes, MADV_HUGEPAGE) != 0) {
+			fprintf(stderr,
+				"madvise MADV_HUGEPAGE failed: %s\n",
+				strerror(errno));
+			exit(1);
+		}
+	}
 
 	if (opt_touch_alloc) {
 		unsigned long i;
@@ -1111,6 +1123,8 @@ int main(int argc, char *argv[])
 				opt_signal_fork = 1;
 			} else if (strcmp(opts[opt_index].name, "memfd") == 0) {
 				opt_memfd = 1;
+			} else if (strcmp(opts[opt_index].name, "madv-thp") == 0) {
+				opt_madv_thp = 1;
 			} else
 				usage(1);
 			break;
