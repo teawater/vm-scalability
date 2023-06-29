@@ -91,6 +91,7 @@ int opt_mincore = 0;
 int opt_mincore_hugepages = 0;
 int opt_write_signal_read = 0;
 int opt_write_signal_write = 0;
+int opt_write_signal_madv_thp = 0;
 int opt_signal_loop = 0;
 int opt_signal_write_times = 1;
 int opt_show_addr = 0;
@@ -182,6 +183,7 @@ void usage(int ok)
 	"    --touch-alloc       write memory to allocate the pages from Linux kernel after allocate it\n"
 	"    --main-write-data DATA Replace index with data when write in main mission\n"
 	"    --write-signal-write do write first, then wait for signal to resume and do write again\n"
+	"    --write-signal-madv-thp do write first, then wait for signal to resume and do madvise MADV_HUGEPAGE\n"
 	"    --signal-loop       loop wait signal and do read or write\n"
 	"    --signal-write-times TIMES set the write times of signal write\n"
 	"    --signal-verify     vetify data when signal read or write\n"
@@ -238,6 +240,7 @@ static const struct option opts[] = {
 	{ "random-seed" , 1, NULL,   0 },
 	{ "main-write-data" , 1, NULL,   0 },
 	{ "write-signal-write" , 0, NULL,   0 },
+	{ "write-signal-madv-thp" , 0, NULL,   0 },
 	{ "signal-loop" , 0, NULL,   0 },
 	{ "signal-write-times" , 1, NULL,   0 },
 	{ "signal-verify" , 0, NULL,   0 },
@@ -646,7 +649,7 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 	if (opt_sync_rw)
 		ready(start_ready_fds, start_wake_fds);
 
-	if (opt_write_signal_read || opt_write_signal_write)
+	if (opt_write_signal_read || opt_write_signal_write || opt_write_signal_madv_thp)
 		buffer = p;
 
 	for (rep = 0; rep < opt_repeat; rep++) {
@@ -821,7 +824,7 @@ long do_units(void)
 			break;
 	} while (bytes);
 
-	if (!opt_write_signal_read && !opt_write_signal_write && unit_bytes)
+	if (!opt_write_signal_read && !opt_write_signal_write && !opt_write_signal_madv_thp && unit_bytes)
 		output_statistics(unit_bytes, "");
 
 	if (opt_read_again && unit_bytes) {
@@ -851,7 +854,7 @@ long do_units(void)
 		output_statistics(rw_bytes, "read again ");
 	}
 
-	if (opt_write_signal_read || opt_write_signal_write ||
+	if (opt_write_signal_read || opt_write_signal_write || opt_write_signal_madv_thp ||
 	    opt_punch_holes_signal) {
 		struct sigaction act;
 		memset(&act, 0, sizeof(act));
@@ -932,6 +935,23 @@ long do_units(void)
 				unit_bytes += do_rw_once(buffer, opt_bytes, &rand_data, 0, &rep, opt_repeat, 1);
 			}
 			output_statistics(unit_bytes, "");
+		}
+
+		if (opt_write_signal_madv_thp) {
+			sigset_t set;
+			printf("madvise MADV_HUGEPAGE Process %d is waiting signal\n", getpid());
+			fflush(stdout);
+			sigfillset(&set);
+			sigdelset(&set, SIGUSR1);
+			sigsuspend(&set);
+			gettimeofday(&start_time, NULL);
+			if (madvise(buffer, opt_bytes, MADV_HUGEPAGE) != 0) {
+				fprintf(stderr,
+					"madvise MADV_HUGEPAGE failed: %s\n",
+					strerror(errno));
+				exit(1);
+			}
+			output_statistics(opt_bytes, "");
 		}
 	} while (opt_signal_loop);
 
@@ -1109,6 +1129,8 @@ int main(int argc, char *argv[])
 				opt_main_write_data = strtoul(optarg, NULL, 0);
 			} else if (strcmp(opts[opt_index].name, "write-signal-write") == 0) {
 				opt_write_signal_write = 1;
+			} else if (strcmp(opts[opt_index].name, "write-signal-madv-thp") == 0) {
+				opt_write_signal_madv_thp = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-loop") == 0) {
 				opt_signal_loop = 1;
 			} else if (strcmp(opts[opt_index].name, "signal-write-times") == 0) {
