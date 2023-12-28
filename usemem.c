@@ -141,6 +141,7 @@ int free_wake_fds[2];
 int numa_is_available = 0;
 int numa_last_node = -1;
 int opt_numa_cpu = -1;
+int opt_numa_memory = -1;
 #endif
 
 void usage(int ok)
@@ -203,6 +204,7 @@ void usage(int ok)
 	"    --madv-thp          madvise MADV_HUGEPAGE\n"
 #ifdef USE_NUMA
 	"    --numa-cpu          bind cpu to a NUMA\n"
+	"    --numa-memory       bind memory to a NUMA\n"
 #endif
 	"    -h|--help           show this message\n"
 	,		ourname);
@@ -262,6 +264,7 @@ static const struct option opts[] = {
 	{ "memfd" , 0, NULL,   0 },
 	{ "madv-thp" , 0, NULL,   0 },
 	{ "numa-cpu" , 1, NULL,   0 },
+	{ "numa-memory" , 1, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -1181,6 +1184,18 @@ int main(int argc, char *argv[])
 						ourname, opt_numa_cpu);
 					exit(1);
 				}
+			} else if (strcmp(opts[opt_index].name, "numa-memory") == 0) {
+				if (!numa_is_available) {
+					fprintf(stderr, "%s: NUMA is not available\n",
+						ourname);
+					exit(1);
+				}
+				opt_numa_memory = strtol(optarg, NULL, 10);
+				if (opt_numa_memory < 0 || opt_numa_memory > numa_last_node) {
+					fprintf(stderr, "%s: numa node %d is not right\n",
+						ourname, opt_numa_memory);
+					exit(1);
+				}
 #endif
 			} else
 				usage(1);
@@ -1333,6 +1348,15 @@ int main(int argc, char *argv[])
 
 		if (sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset) == -1) {
 			perror("sched_setaffinity");
+			exit(1);
+		}
+	}
+
+	if (opt_numa_memory >= 0) {
+		unsigned long nodemask = 1UL << opt_numa_memory;
+
+		if (set_mempolicy(MPOL_BIND, &nodemask, sizeof(nodemask) * 8) == -1) {
+			perror("set_mempolicy");
 			exit(1);
 		}
 	}
