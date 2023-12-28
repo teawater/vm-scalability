@@ -12,6 +12,13 @@ else
 	EXTRA_LDFLAGS :=
 endif
 
+ifdef USEMEM_NUMA
+	USEMEM_NUMA_FLAGS := -DUSE_NUMA
+	USEMEM_NUMA_LIB := -lnuma
+else
+	USEMEM_NUMA_FLAGS :=
+	USEMEM_NUMA_LIB :=
+endif
 
 all:	$(EXECUTABLES)
 
@@ -22,10 +29,10 @@ distclean: clean
 	rm -f $(EXECUTABLES)
 
 usemem: usemem.o usemem_hugepages.o usemem_mincore.o
-	gcc -pthread -Wall -O -g $(EXTRA_LDFLAGS) usemem_mincore.o usemem_hugepages.o usemem.o -o usemem
+	gcc -pthread -Wall -O -g $(EXTRA_LDFLAGS) usemem_mincore.o usemem_hugepages.o usemem.o -o usemem $(USEMEM_NUMA_LIB)
 
 usemem.o: usemem.c
-	gcc -O -c -Wall -g $(EXTRA_LDFLAGS) usemem.c -o usemem.o
+	gcc -O -c -Wall -g $(EXTRA_LDFLAGS) $(USEMEM_NUMA_FLAGS) usemem.c -o usemem.o
 
 usemem_hugepages.o: usemem_hugepages.c
 	gcc -Wall -O -c -g $(EXTRA_LDFLAGS) usemem_hugepages.c -o usemem_hugepages.o

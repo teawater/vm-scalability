@@ -33,6 +33,11 @@
 #include "usemem_mincore.h"
 #include "usemem_hugepages.h"
 
+#ifdef USE_NUMA
+#include <numaif.h>
+#include <numa.h>
+#endif
+
 #define uninitialized_var(x) x = x
 #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 
@@ -132,6 +137,11 @@ int start_ready_fds[2];
 int start_wake_fds[2];
 int free_ready_fds[2];
 int free_wake_fds[2];
+#ifdef USE_NUMA
+int numa_is_available = 0;
+int numa_last_node = -1;
+int opt_numa_cpu = -1;
+#endif
 
 void usage(int ok)
 {
@@ -191,6 +201,9 @@ void usage(int ok)
 	"    --signal-fork       wait signal before fork\n"
 	"    --memfd             use memfd\n"
 	"    --madv-thp          madvise MADV_HUGEPAGE\n"
+#ifdef USE_NUMA
+	"    --numa-cpu          bind cpu to a NUMA\n"
+#endif
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -248,6 +261,7 @@ static const struct option opts[] = {
 	{ "signal-fork" , 0, NULL,   0 },
 	{ "memfd" , 0, NULL,   0 },
 	{ "madv-thp" , 0, NULL,   0 },
+	{ "numa-cpu" , 1, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -1100,6 +1114,13 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+#ifdef USE_NUMA
+	if (numa_available() >= 0) {
+		numa_is_available = 1;
+		numa_last_node = numa_max_node();
+	}
+#endif
+
 	ourname = argv[0];
 	pagesize = getpagesize();
 
@@ -1147,6 +1168,20 @@ int main(int argc, char *argv[])
 				opt_memfd = 1;
 			} else if (strcmp(opts[opt_index].name, "madv-thp") == 0) {
 				opt_madv_thp = 1;
+#ifdef USE_NUMA
+			} else if (strcmp(opts[opt_index].name, "numa-cpu") == 0) {
+				if (!numa_is_available) {
+					fprintf(stderr, "%s: NUMA is not available\n",
+						ourname);
+					exit(1);
+				}
+				opt_numa_cpu = strtol(optarg, NULL, 10);
+				if (opt_numa_cpu < 0 || opt_numa_cpu > numa_last_node) {
+					fprintf(stderr, "%s: numa node %d is not right\n",
+						ourname, opt_numa_cpu);
+					exit(1);
+				}
+#endif
 			} else
 				usage(1);
 			break;
@@ -1282,6 +1317,26 @@ int main(int argc, char *argv[])
 			usage(1);
 		}
 	}
+
+#ifdef USE_NUMA
+	if (opt_numa_cpu >= 0) {
+		cpu_set_t cpuset;
+		int numa_cpus_number;
+		int i;
+
+		CPU_ZERO(&cpuset);
+		numa_cpus_number = numa_num_configured_cpus();
+		for (i = 0; i < numa_cpus_number; i++) {
+			if (opt_numa_cpu == numa_node_of_cpu(i))
+				CPU_SET(i, &cpuset);
+		}
+
+		if (sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset) == -1) {
+			perror("sched_setaffinity");
+			exit(1);
+		}
+	}
+#endif
 
 	if (opt_punch_holes && opt_malloc) {
 		fprintf(stderr,
