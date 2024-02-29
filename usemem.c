@@ -70,6 +70,10 @@
 #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
 #endif
 
+#ifndef MADV_PAGEOUT
+#define MADV_PAGEOUT    21
+#endif
+
 char *ourname;
 unsigned long pagesize;
 unsigned long done_bytes = 0;
@@ -119,6 +123,7 @@ unsigned long opt_main_write_data = 0;
 unsigned long opt_signal_write_data = 0;
 int opt_memfd = 0;
 int opt_madv_thp = 0;
+int opt_madv_pageout = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -206,6 +211,7 @@ void usage(int ok)
 	"    --numa-cpu          bind cpu to a NUMA\n"
 	"    --numa-memory       bind memory to a NUMA\n"
 #endif
+	"    --madv-pageout      madvise MADV_PAGEOUT after first memory access\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -265,6 +271,7 @@ static const struct option opts[] = {
 	{ "madv-thp" , 0, NULL,   0 },
 	{ "numa-cpu" , 1, NULL,   0 },
 	{ "numa-memory" , 1, NULL,   0 },
+	{ "madv-pageout" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -666,7 +673,10 @@ unsigned long do_unit(unsigned long bytes, struct drand48_data *rand_data,
 	if (opt_sync_rw)
 		ready(start_ready_fds, start_wake_fds);
 
-	if (opt_write_signal_read || opt_write_signal_write || opt_write_signal_madv_thp)
+	if (opt_write_signal_read ||
+	    opt_write_signal_write ||
+	    opt_write_signal_madv_thp ||
+	    opt_madv_pageout)
 		buffer = p;
 
 	for (rep = 0; rep < opt_repeat; rep++) {
@@ -921,6 +931,21 @@ long do_units(void)
 	}
 
 	do {
+		if (opt_madv_pageout) {
+			if (madvise(buffer, opt_bytes, 20) != 0) {
+				fprintf(stderr,
+					"madvise MADV_COLD failed: %s\n",
+					strerror(errno));
+				exit(1);
+			}
+			if (madvise(buffer, opt_bytes, MADV_PAGEOUT) != 0) {
+				fprintf(stderr,
+					"madvise MADV_PAGEOUT failed: %s\n",
+					strerror(errno));
+				exit(1);
+			}
+		}
+
 		if (opt_write_signal_read) {
 			sigset_t set;
 			printf("Read Process %d is waiting signal\n", getpid());
@@ -1197,6 +1222,8 @@ int main(int argc, char *argv[])
 					exit(1);
 				}
 #endif
+			} else if (strcmp(opts[opt_index].name, "madv-pageout") == 0) {
+				opt_madv_pageout = 1;
 			} else
 				usage(1);
 			break;
