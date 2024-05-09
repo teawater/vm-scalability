@@ -124,6 +124,7 @@ unsigned long opt_signal_write_data = 0;
 int opt_memfd = 0;
 int opt_madv_thp = 0;
 int opt_madv_pageout = 0;
+int opt_first_access_speed = 0;
 int nr_task;
 int nr_thread;
 int nr_cpu;
@@ -212,6 +213,7 @@ void usage(int ok)
 	"    --numa-memory       bind memory to a NUMA\n"
 #endif
 	"    --madv-pageout      madvise MADV_PAGEOUT after first memory access\n"
+	"    --first-access-speed show first memory access speed\n"
 	"    -h|--help           show this message\n"
 	,		ourname);
 
@@ -272,6 +274,7 @@ static const struct option opts[] = {
 	{ "numa-cpu" , 1, NULL,   0 },
 	{ "numa-memory" , 1, NULL,   0 },
 	{ "madv-pageout" , 0, NULL,   0 },
+	{ "first-access-speed" , 0, NULL,   0 },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
 };
@@ -834,6 +837,9 @@ long do_units(void)
 	if (!opt_sync_rw)
 		ready(start_ready_fds, start_wake_fds);
 
+	if (opt_first_access_speed)
+		gettimeofday(&start_time, NULL);
+
 	/*
 	 * Allow a bytes=0 pass for pure fork bomb:
 	 * usemem -n 10000 0 --detach --sleep 10
@@ -851,7 +857,8 @@ long do_units(void)
 			break;
 	} while (bytes);
 
-	if (!opt_write_signal_read && !opt_write_signal_write && !opt_write_signal_madv_thp && unit_bytes)
+	if (opt_first_access_speed ||
+	    (!opt_write_signal_read && !opt_write_signal_write && !opt_write_signal_madv_thp && unit_bytes))
 		output_statistics(unit_bytes, "");
 
 	if (opt_read_again && unit_bytes) {
@@ -1224,6 +1231,8 @@ int main(int argc, char *argv[])
 #endif
 			} else if (strcmp(opts[opt_index].name, "madv-pageout") == 0) {
 				opt_madv_pageout = 1;
+			} else if (strcmp(opts[opt_index].name, "first-access-speed") == 0) {
+				opt_first_access_speed = 1;
 			} else
 				usage(1);
 			break;
